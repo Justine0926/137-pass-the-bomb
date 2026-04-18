@@ -21,6 +21,9 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 
+// THIS IS THE CLASS FOR THE GAMEBOARD/MAP
+// where the game takes place
+
 public class GameBoard extends Pane {
 	//initialize players
     private final Player player1;
@@ -50,7 +53,7 @@ public class GameBoard extends Pane {
     //randomized bomb holder
     boolean bombHolder = Math.random() < 0.5;
     
-    // We now pass a Runnable so the board knows how to go back to the menu
+    // we now pass a Runnable so the board knows how to go back to the menu
     public GameBoard(Runnable onMenuReturn) {
         player1 = new Player(200, 300, Color.DODGERBLUE, 
                              KeyCode.W, KeyCode.S, KeyCode.A, KeyCode.D, bombHolder);
@@ -60,6 +63,7 @@ public class GameBoard extends Pane {
 
         timerText = new Text(350, 50, "Time: 60");
         timerText.setFont(Font.font("Arial", FontWeight.BOLD, 30));
+        timerText.setFill(Color.ORANGE);
 
         gameOverText = new Text(200, 300, "");
         gameOverText.setFont(Font.font("Arial", FontWeight.BOLD, 40));
@@ -86,8 +90,8 @@ public class GameBoard extends Pane {
         );
 
         // create the vision circles
-        p1Vision = new Circle(100, visionLight);
-        p2Vision = new Circle(100, visionLight);
+        p1Vision = new Circle(75, visionLight);
+        p2Vision = new Circle(75, visionLight);
 
         // create a pitch-black background
         Rectangle darkBackground = new Rectangle(800, 600, Color.BLACK);
@@ -97,7 +101,7 @@ public class GameBoard extends Pane {
         darknessLayer.setBlendMode(BlendMode.MULTIPLY);
         
      // --- RANDOM OBSTACLE SETUP ---
-        int numberOfObstacles = 10; // arbitrary number of obstacles
+        int numberOfObstacles = 5; // arbitrary number of obstacles
         
         for (int i = 0; i < numberOfObstacles; i++) {
             boolean isSafeSpot = false;

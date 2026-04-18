@@ -11,29 +11,29 @@ import javafx.scene.text.Text;
 //it handles the start game, and exit functions
 public class MainMenu extends VBox {
     
-    // We pass in 'Runnables' (actions) so the menu knows what to do when clicked
+    // we pass in 'Runnables' (actions) so the menu knows what to do when clicked
     public MainMenu(Runnable onStart, Runnable onExit) {
-        // Center everything and add space between items
+        // center everything and add space between items
         this.setAlignment(Pos.CENTER);
         this.setSpacing(30); 
 
-        // Create the Title
-        Text title = new Text("137 Pass The Bomb");
+        // create the Title
+        Text title = new Text("Pass The Bomb");
         title.setFont(Font.font("Arial", FontWeight.BOLD, 50));
 
-        // Create the Start Button
+        // create the Start Button
         Button startBtn = new Button("Start Game");
         startBtn.setFont(Font.font("Arial", 24));
         startBtn.setPrefWidth(200);
         startBtn.setOnAction(e -> onStart.run());
 
-        // Create the Exit Button
+        // create the Exit Button
         Button exitBtn = new Button("Exit");
         exitBtn.setFont(Font.font("Arial", 24));
         exitBtn.setPrefWidth(200);
         exitBtn.setOnAction(e -> onExit.run());
 
-        // Add them all to the screen
+        // add them all to the screen
         this.getChildren().addAll(title, startBtn, exitBtn);
     }
 }
