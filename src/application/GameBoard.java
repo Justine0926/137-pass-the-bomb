@@ -1,5 +1,8 @@
 package application;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import javafx.animation.AnimationTimer;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.Pane;
@@ -7,9 +10,6 @@ import javafx.scene.paint.Color;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
-
-import java.util.HashSet;
-import java.util.Set;
 
 public class GameBoard extends Pane {
     private final Player player1;

@@ -1,10 +1,10 @@
 package application;
 
+import java.util.Set;
+
 import javafx.scene.input.KeyCode;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
-
-import java.util.Set;
 
 public class Player extends Circle {
     private boolean hasBomb;
