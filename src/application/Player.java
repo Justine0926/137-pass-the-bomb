@@ -1,10 +1,12 @@
 package application;
 
+import java.util.List;
 import java.util.Set;
 
 import javafx.scene.input.KeyCode;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
+import javafx.scene.shape.Rectangle;
 
 public class Player extends Circle {
     private boolean hasBomb;
@@ -27,7 +29,13 @@ public class Player extends Circle {
     }
 
     // Move based on which keys are currently being pressed
-    public void move(Set<KeyCode> activeKeys, double screenWidth, double screenHeight) {
+ // Move based on active keys and check for wall collisions
+    public void move(Set<KeyCode> activeKeys, double screenWidth, double screenHeight, List<Rectangle> obstacles) {
+        // 1. Save the current position before trying to move
+        double oldX = getCenterX();
+        double oldY = getCenterY();
+
+        // 2. Attempt the movement
         if (activeKeys.contains(upKey) && getCenterY() - getRadius() > 0) {
             setCenterY(getCenterY() - speed);
         }
@@ -39,6 +47,16 @@ public class Player extends Circle {
         }
         if (activeKeys.contains(rightKey) && getCenterX() + getRadius() < screenWidth) {
             setCenterX(getCenterX() + speed);
+        }
+
+        // 3. Check if this new movement put the player inside an obstacle
+        for (Rectangle wall : obstacles) {
+            if (this.getBoundsInParent().intersects(wall.getBoundsInParent())) {
+                // Collision detected! Snap them back to where they were before the move
+                setCenterX(oldX);
+                setCenterY(oldY);
+                break; // No need to check other walls if we already hit one
+            }
         }
     }
 
