@@ -33,15 +33,14 @@ public class Main extends Application {
 
     // Method to create and display the Game Scene
     public void startGame() {
-        // This is your exact same game logic from before!
-        GameBoard gameLayout = new GameBoard();
+        // Pass the showMainMenu method into the GameBoard!
+        GameBoard gameLayout = new GameBoard(this::showMainMenu);
+        
         Scene gameScene = new Scene(gameLayout, WIDTH, HEIGHT);
         
-        // Pass key presses down to the GameBoard
         gameScene.setOnKeyPressed(event -> gameLayout.addKey(event.getCode()));
         gameScene.setOnKeyReleased(event -> gameLayout.removeKey(event.getCode()));
 
-        // Swap the window to the game channel
         window.setScene(gameScene);
     }
 	

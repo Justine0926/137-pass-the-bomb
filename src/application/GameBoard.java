@@ -4,6 +4,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import javafx.animation.AnimationTimer;
+import javafx.scene.control.Button;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
@@ -16,33 +17,46 @@ public class GameBoard extends Pane {
     private final Player player2;
     private final Text timerText;
     private final Text gameOverText;
+    private final Button returnButton; 
     
     private final Set<KeyCode> activeKeys = new HashSet<>();
     private AnimationTimer gameLoop;
     
-    private final long gameDurationNanos = 60_000_000_000L; // 60 seconds
-    private final long cooldownNanos = 1_000_000_000L;      // 1 second pass cooldown
+    private final long gameDurationNanos = 5_000_000_000L;
+    private final long cooldownNanos = 1_000_000_000L;
     private long bombLastPassedTime = 0;
-
-    public GameBoard() {
-        // Setup Player 1 (Blue, WASD keys, Starts WITH the bomb)
+    
+    //randomized bomb holder
+    boolean bombHolder = Math.random() < 0.5;
+    
+    // We now pass a Runnable so the board knows how to go back to the menu
+    public GameBoard(Runnable onMenuReturn) {
         player1 = new Player(200, 300, Color.DODGERBLUE, 
-                             KeyCode.W, KeyCode.S, KeyCode.A, KeyCode.D, true);
+                             KeyCode.W, KeyCode.S, KeyCode.A, KeyCode.D, bombHolder);
 
-        // Setup Player 2 (Green, Arrow keys, Starts WITHOUT the bomb)
         player2 = new Player(600, 300, Color.LIMEGREEN, 
-                             KeyCode.UP, KeyCode.DOWN, KeyCode.LEFT, KeyCode.RIGHT, false);
+                             KeyCode.UP, KeyCode.DOWN, KeyCode.LEFT, KeyCode.RIGHT, !bombHolder);
 
-        // Setup Timer UI
         timerText = new Text(350, 50, "Time: 60");
         timerText.setFont(Font.font("Arial", FontWeight.BOLD, 30));
 
-        // Setup Game Over UI (Hidden initially)
         gameOverText = new Text(200, 300, "");
         gameOverText.setFont(Font.font("Arial", FontWeight.BOLD, 40));
         gameOverText.setVisible(false);
 
-        this.getChildren().addAll(player1, player2, timerText, gameOverText);
+        // Setup the Return to Menu Button
+        returnButton = new Button("Back to Main Menu");
+        returnButton.setFont(Font.font("Arial", 20));
+        returnButton.setPrefWidth(220);
+        returnButton.setLayoutX(290); // Centered horizontally
+        returnButton.setLayoutY(380); // Placed right below the Game Over text
+        returnButton.setVisible(false); // Hidden while playing
+        
+        // When clicked, run the menu method
+        returnButton.setOnAction(e -> onMenuReturn.run());
+
+        // Don't forget to add the returnButton to the screen!
+        this.getChildren().addAll(player1, player2, timerText, gameOverText, returnButton);
         startGame();
     }
 
@@ -57,7 +71,6 @@ public class GameBoard extends Pane {
             public void handle(long now) {
                 if (startTime == -1) startTime = now;
 
-                // 1. Calculate time remaining
                 long elapsedNanos = now - startTime;
                 long timeRemaining = (gameDurationNanos - elapsedNanos) / 1_000_000_000L;
                 
@@ -67,12 +80,8 @@ public class GameBoard extends Pane {
                 }
                 
                 timerText.setText("Time: " + timeRemaining);
-
-                // 2. Move players
                 player1.move(activeKeys, getWidth(), getHeight());
                 player2.move(activeKeys, getWidth(), getHeight());
-
-                // 3. Check for collisions (Bomb passing logic)
                 checkCollision(now);
             }
         };
@@ -80,18 +89,11 @@ public class GameBoard extends Pane {
     }
 
     private void checkCollision(long now) {
-        // If players are touching
         if (player1.getBoundsInParent().intersects(player2.getBoundsInParent())) {
-            
-            // Only pass if 1 second has elapsed since the last pass
             if (now - bombLastPassedTime > cooldownNanos) {
-                
-                // Swap bomb status
                 boolean p1HadBomb = player1.hasBomb();
                 player1.setBomb(!p1HadBomb);
                 player2.setBomb(p1HadBomb);
-                
-                // Reset cooldown
                 bombLastPassedTime = now;
             }
         }
@@ -101,6 +103,7 @@ public class GameBoard extends Pane {
         gameLoop.stop();
         timerText.setText("Time: 0");
         gameOverText.setVisible(true);
+        returnButton.setVisible(true); 
         
         if (player1.hasBomb()) {
             gameOverText.setText("Time's Up! Player 2 Wins!");
@@ -110,7 +113,6 @@ public class GameBoard extends Pane {
             gameOverText.setFill(Color.DODGERBLUE);
         }
         
-        // Center the game over text roughly
         gameOverText.setX((getWidth() - gameOverText.getLayoutBounds().getWidth()) / 2);
     }
 }
