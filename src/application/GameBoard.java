@@ -39,7 +39,7 @@ public class GameBoard extends Pane {
     private final Set<KeyCode> activeKeys = new HashSet<>();
     private AnimationTimer gameLoop;
     
-    private final long gameDurationNanos = 5_000_000_000L;
+    private final long gameDurationNanos = 60_000_000_000L;
     private final long cooldownNanos = 1_000_000_000L;
     private long bombLastPassedTime = 0;
     
