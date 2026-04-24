@@ -22,6 +22,7 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.paint.ImagePattern;
 // THIS IS THE CLASS FOR THE GAMEBOARD/MAP
 // where the game takes place
 
@@ -113,34 +114,36 @@ public class GameBoard extends Pane {
         darknessLayer.setBlendMode(BlendMode.MULTIPLY);
         
      // --- RANDOM OBSTACLE SETUP ---
-        int numberOfObstacles = 5; // arbitrary number of obstacles
+        int numberOfObstacles = 6; 
+        double obstacleSize = 80; //obstacle size
+        
+        //load image
+        Image crateImg = new Image(getClass().getResource("/sprites/obstacle/fence.png").toExternalForm());
+        ImagePattern crateTexture = new ImagePattern(crateImg);
         
         for (int i = 0; i < numberOfObstacles; i++) {
             boolean isSafeSpot = false;
             Rectangle newWall = null;
             
-            // keep guessing random locations until we find one that doesn't trap a player
             while (!isSafeSpot) {
-                // randomize size (between 40 and 120 pixels)
-                double wallWidth = 40 + (Math.random() * 80);
-                double wallHeight = 40 + (Math.random() * 80);
+                // randomize position 
+                double randomX = Math.random() * (1360 - obstacleSize);
+                double randomY = Math.random() * (800 - obstacleSize);
                 
-                // randomize position (Ensuring they stay within the 800x600 screen bounds)
-                double randomX = Math.random() * (1400 - wallWidth);
-                double randomY = Math.random() * (800 - wallHeight);
+                // build the physical hitbox
+                newWall = new Rectangle(randomX, randomY, obstacleSize, obstacleSize);
                 
-                newWall = new Rectangle(randomX, randomY, wallWidth, wallHeight);
-                newWall.setFill(Color.DARKGRAY);
+                // paint the rectangle with your image instead of Color.DARKGRAY
+                newWall.setFill(crateTexture); 
                 
-                //ensure the wall doesn't spawn on top of Player 1 or Player 2
+                // ensure the wall doesn't spawn on top of Player 1 or Player 2
                 if (!newWall.getBoundsInParent().intersects(player1.getBoundsInParent()) && 
                     !newWall.getBoundsInParent().intersects(player2.getBoundsInParent())) {
                     
-                    isSafeSpot = true; // safe, break the loop
+                    isSafeSpot = true; 
                 }
             }
             
-            // add the safely placed wall to the list
             obstacles.add(newWall);
         }
         
