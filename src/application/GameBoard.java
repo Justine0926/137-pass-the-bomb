@@ -20,7 +20,8 @@ import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
-
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 // THIS IS THE CLASS FOR THE GAMEBOARD/MAP
 // where the game takes place
 
@@ -55,17 +56,17 @@ public class GameBoard extends Pane {
     
     // we now pass a Runnable so the board knows how to go back to the menu
     public GameBoard(Runnable onMenuReturn) {
-        player1 = new Player(200, 300, Color.DODGERBLUE, 
+        player1 = new Player(200, 300, "", 
                              KeyCode.W, KeyCode.S, KeyCode.A, KeyCode.D, bombHolder);
 
-        player2 = new Player(600, 300, Color.LIMEGREEN, 
+        player2 = new Player(600, 300, "", 
                              KeyCode.UP, KeyCode.DOWN, KeyCode.LEFT, KeyCode.RIGHT, !bombHolder);
 
-        timerText = new Text(350, 50, "Time: 60");
+        timerText = new Text(650, 50, "Time: 60");
         timerText.setFont(Font.font("Arial", FontWeight.BOLD, 30));
         timerText.setFill(Color.ORANGE);
 
-        gameOverText = new Text(200, 300, "");
+        gameOverText = new Text(650, 400, "");
         gameOverText.setFont(Font.font("Arial", FontWeight.BOLD, 40));
         gameOverText.setVisible(false);
 
@@ -73,13 +74,24 @@ public class GameBoard extends Pane {
         returnButton = new Button("Back to Main Menu");
         returnButton.setFont(Font.font("Arial", 20));
         returnButton.setPrefWidth(220);
-        returnButton.setLayoutX(290); // Centered horizontally
-        returnButton.setLayoutY(380); // Placed right below the Game Over text
+        returnButton.setLayoutX(600); // Centered horizontally
+        returnButton.setLayoutY(480); // Placed right below the Game Over text
         returnButton.setVisible(false); // Hidden while playing
         
         
         // when clicked, run the menu method
         returnButton.setOnAction(e -> onMenuReturn.run());
+        
+     // --- BACKGROUND ARENA LOGIC ---
+        // get the image file in the screens folder
+        Image mapImage = new Image(getClass().getResource("/screens/arena.png").toExternalForm());
+        
+        // place the image
+        ImageView mapBackground = new ImageView(mapImage);
+        
+        // Stretch the image to fill the exact size of our window
+        mapBackground.setFitWidth(1400);
+        mapBackground.setFitHeight(800);
         
         // --- LIMITED VISION LOGIC ---
         // create a gradient for the "Flashlight" (White in the center, fades to Black at the edges)
@@ -94,7 +106,7 @@ public class GameBoard extends Pane {
         p2Vision = new Circle(75, visionLight);
 
         // create a pitch-black background
-        Rectangle darkBackground = new Rectangle(800, 600, Color.BLACK);
+        Rectangle darkBackground = new Rectangle(1400, 800, Color.BLACK);
 
         // group them together and apply the Multiply blend mode
         darknessLayer = new Group(darkBackground, p1Vision, p2Vision);
@@ -114,8 +126,8 @@ public class GameBoard extends Pane {
                 double wallHeight = 40 + (Math.random() * 80);
                 
                 // randomize position (Ensuring they stay within the 800x600 screen bounds)
-                double randomX = Math.random() * (800 - wallWidth);
-                double randomY = Math.random() * (600 - wallHeight);
+                double randomX = Math.random() * (1400 - wallWidth);
+                double randomY = Math.random() * (800 - wallHeight);
                 
                 newWall = new Rectangle(randomX, randomY, wallWidth, wallHeight);
                 newWall.setFill(Color.DARKGRAY);
@@ -133,9 +145,10 @@ public class GameBoard extends Pane {
         }
         
         // add everything on the screen
+        this.getChildren().add(mapBackground);
         this.getChildren().addAll(player1, player2);
         this.getChildren().addAll(obstacles); // add walls before the darkness
-        this.getChildren().addAll(darknessLayer, timerText, gameOverText, returnButton);
+        this.getChildren().addAll( timerText, gameOverText, returnButton);
         startGame();
     }
 

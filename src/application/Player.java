@@ -3,62 +3,112 @@ package application;
 import java.util.List;
 import java.util.Set;
 
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
-import javafx.scene.paint.Color;
-import javafx.scene.shape.Circle;
 import javafx.scene.shape.Rectangle;
 
-//THIS IS THE PLAYER CLASS
-// the set-up of the player happens here
-public class Player extends Circle {
+public class Player extends ImageView {
     private boolean hasBomb;
-    private final Color baseColor;
+    private boolean isMoving = false;
     private final int speed = 6;
+    private final double size = 40; 
     
-    // keybinds for this specific player
+    // Arrays to hold the 3 frames of walking animation
+    private final Image idleImg;
+    private final Image idleBombImg;
+    private final Image[] walkFrames = new Image[3];
+    private final Image[] walkBombFrames = new Image[3];
+    
+    // Animation counters
+    private int currentWalkFrame = 0;
+    private int animationTick = 0;
+    private final int animationSpeed = 8; // Higher number = slower leg movement
+    
     private final KeyCode upKey, downKey, leftKey, rightKey;
 
-    public Player(double startX, double startY, Color baseColor, 
+    public Player(double startX, double startY, String prefix, 
                   KeyCode up, KeyCode down, KeyCode left, KeyCode right, boolean startsWithBomb) {
-        super(startX, startY, 20); // 20 is the radius of the player
-        this.baseColor = baseColor;
+        
+        // 1. Load the stationary images
+        idleImg = new Image(getClass().getResource("/sprites/" + prefix + "idle.png").toExternalForm());
+        idleBombImg = new Image(getClass().getResource("/sprites/" + prefix + "idle_bomb.png").toExternalForm());
+        
+        // 2. Loop to load the 3 walking frames dynamically
+        for (int i = 0; i < 3; i++) {
+            // (i + 1) makes it look for walk1.png, walk2.png, walk3.png
+            walkFrames[i] = new Image(getClass().getResource("/sprites/" + prefix + "walk" + (i + 1) + ".png").toExternalForm());
+            walkBombFrames[i] = new Image(getClass().getResource("/sprites/" + prefix + "walk_bomb" + (i + 1) + ".png").toExternalForm());
+        }
+        
+        this.setX(startX);
+        this.setY(startY);
+        this.setFitWidth(size);
+        this.setFitHeight(size);
+        
         this.upKey = up;
         this.downKey = down;
         this.leftKey = left;
         this.rightKey = right;
         this.hasBomb = startsWithBomb;
+        
         updateAppearance();
     }
 
-    // move based on which keys are currently being pressed
-    // move based on active keys and check for wall collisions
     public void move(Set<KeyCode> activeKeys, double screenWidth, double screenHeight, List<Rectangle> obstacles) {
-        // save the current position before trying to move
-        double oldX = getCenterX();
-        double oldY = getCenterY();
+        double oldX = getX();
+        double oldY = getY();
+        
+        boolean wasMoving = isMoving;
+        isMoving = false; 
 
-        // attempt the movement
-        if (activeKeys.contains(upKey) && getCenterY() - getRadius() > 0) {
-            setCenterY(getCenterY() - speed);
+        // Attempt movement
+        if (activeKeys.contains(upKey) && getY() > 0) {
+            setY(getY() - speed);
+            isMoving = true;
         }
-        if (activeKeys.contains(downKey) && getCenterY() + getRadius() < screenHeight) {
-            setCenterY(getCenterY() + speed);
+        if (activeKeys.contains(downKey) && getY() + size < screenHeight) {
+            setY(getY() + speed);
+            isMoving = true;
         }
-        if (activeKeys.contains(leftKey) && getCenterX() - getRadius() > 0) {
-            setCenterX(getCenterX() - speed);
+        if (activeKeys.contains(leftKey) && getX() > 0) {
+            setX(getX() - speed);
+            isMoving = true;
         }
-        if (activeKeys.contains(rightKey) && getCenterX() + getRadius() < screenWidth) {
-            setCenterX(getCenterX() + speed);
+        if (activeKeys.contains(rightKey) && getX() + size < screenWidth) {
+            setX(getX() + speed);
+            isMoving = true;
         }
 
-        // check wall collision
+        // Check wall collision
         for (Rectangle wall : obstacles) {
             if (this.getBoundsInParent().intersects(wall.getBoundsInParent())) {
-                // Collision detected! Snap them back to where they were before the move
-                setCenterX(oldX);
-                setCenterY(oldY);
-                break; // No need to check other walls if we already hit one
+                setX(oldX);
+                setY(oldY);
+                break; 
             }
+        }
+        
+        // --- NEW ANIMATION LOGIC ---
+        if (isMoving) {
+            animationTick++;
+            // If enough time has passed, step to the next frame
+            if (animationTick >= animationSpeed) {
+                animationTick = 0; // Reset the metronome
+                
+                // Move to next frame, loop back to 0 if it hits 3
+                currentWalkFrame = (currentWalkFrame + 1) % 3; 
+                updateAppearance();
+            }
+        } else {
+            // If they stop walking, instantly reset their legs to the starting position
+            currentWalkFrame = 0;
+            animationTick = 0;
+        }
+
+        // Catch the exact moment they start or stop walking to ensure it updates immediately
+        if (wasMoving != isMoving) {
+            updateAppearance();
         }
     }
 
@@ -71,15 +121,16 @@ public class Player extends Circle {
         updateAppearance();
     }
 
-    // turns the player red if they have the bomb, otherwise their normal color
     private void updateAppearance() {
         if (hasBomb) {
-            this.setFill(Color.RED);
-            this.setStroke(Color.DARKRED);
-            this.setStrokeWidth(3);
+            // Use the array and the current frame index!
+            this.setImage(isMoving ? walkBombFrames[currentWalkFrame] : idleBombImg);
         } else {
-            this.setFill(baseColor);
-            this.setStroke(Color.TRANSPARENT);
+            this.setImage(isMoving ? walkFrames[currentWalkFrame] : idleImg);
         }
     }
+    
+    // Helper Methods
+    public double getCenterX() { return getX() + (size / 2); }
+    public double getCenterY() { return getY() + (size / 2); }
 }

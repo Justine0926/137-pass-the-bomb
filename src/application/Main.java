@@ -7,8 +7,8 @@ import javafx.stage.Stage;
 public class Main extends Application {
     
     private Stage window; // Store the main window so we can change its scenes
-    private final int WIDTH = 800;
-    private final int HEIGHT = 600;
+    private final int WIDTH = 1400;
+    private final int HEIGHT = 800;
 
     @Override
     public void start(Stage primaryStage) {
