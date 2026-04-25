@@ -23,6 +23,7 @@ import javafx.scene.text.Text;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.paint.ImagePattern;
+import javafx.scene.effect.DropShadow;
 // THIS IS THE CLASS FOR THE GAMEBOARD/MAP
 // where the game takes place
 
@@ -40,7 +41,7 @@ public class GameBoard extends Pane {
     private final Set<KeyCode> activeKeys = new HashSet<>();
     private AnimationTimer gameLoop;
     
-    private final long gameDurationNanos = 60_000_000_000L;
+    private final long gameDurationNanos = 5_000_000_000L;
     private final long cooldownNanos = 1_000_000_000L;
     private long bombLastPassedTime = 0;
     
@@ -60,25 +61,64 @@ public class GameBoard extends Pane {
         player1 = new Player(200, 300, "", 
                              KeyCode.W, KeyCode.S, KeyCode.A, KeyCode.D, bombHolder);
 
-        player2 = new Player(600, 300, "", 
+        player2 = new Player(1100, 300, "", 
                              KeyCode.UP, KeyCode.DOWN, KeyCode.LEFT, KeyCode.RIGHT, !bombHolder);
+        
+        // --- TIMER TEXT ---
+        timerText = new Text(650, 50, "TIME: 60");
+        timerText.setFont(Font.font("Monospaced", FontWeight.BOLD, 30));
+        timerText.setFill(Color.rgb(0xE8, 0xE0, 0xC0)); // MainMenu ACCENT color
+        timerText.setStroke(Color.rgb(0x08, 0x08, 0x08)); // MainMenu BLACK
+        timerText.setStrokeWidth(2);
+        
+        // drop shadow
+        DropShadow timerShadow = new DropShadow();
+        timerShadow.setOffsetY(4);
+        timerShadow.setOffsetX(4);
+        timerShadow.setColor(Color.color(0, 0, 0, 0.7));
+        timerShadow.setRadius(0); 
+        timerText.setEffect(timerShadow);
 
-        timerText = new Text(650, 50, "Time: 60");
-        timerText.setFont(Font.font("Consolas", FontWeight.BOLD, 30));
-        timerText.setFill(Color.ORANGE);
-
-        gameOverText = new Text(650, 400, "");
-        gameOverText.setFont(Font.font("Arial", FontWeight.BOLD, 40));
+        // --- GAME OVER TEXT ---
+        gameOverText = new Text(600, 400, "");
+        gameOverText.setFont(Font.font("Monospaced", FontWeight.BOLD, 50));
+        gameOverText.setStroke(Color.rgb(0x08, 0x08, 0x08)); 
+        gameOverText.setStrokeWidth(3); // Slightly thicker outline for bigger text
+        
+        DropShadow gameOverShadow = new DropShadow();
+        gameOverShadow.setOffsetY(6);
+        gameOverShadow.setOffsetX(6);
+        gameOverShadow.setColor(Color.color(0, 0, 0, 0.8));
+        gameOverShadow.setRadius(0);
+        gameOverText.setEffect(gameOverShadow);
+        
         gameOverText.setVisible(false);
 
-        // setup the Return to Menu Button
-        returnButton = new Button("Back to Main Menu");
-        returnButton.setFont(Font.font("Arial", 20));
-        returnButton.setPrefWidth(220);
-        returnButton.setLayoutX(600); // Centered horizontally
-        returnButton.setLayoutY(480); // Placed right below the Game Over text
-        returnButton.setVisible(false); // Hidden while playing
+     // ---RETURN BUTTON ---
+        returnButton = new Button("BACK TO MAIN MENU"); 
+        returnButton.setFont(Font.font("Monospaced", FontWeight.BOLD, 22)); // Matches MENU_FONT_SIZE
+        returnButton.setStyle("-fx-background-color: transparent; -fx-text-fill: rgb(144, 140, 128); -fx-cursor: hand;");
+        returnButton.setPrefWidth(400);
+        returnButton.setLayoutX(500); 
+        returnButton.setLayoutY(420); 
+        returnButton.setVisible(false); 
+        DropShadow buttonShadow = new DropShadow();
+        buttonShadow.setOffsetY(3);
+        buttonShadow.setOffsetX(3);
+        buttonShadow.setColor(Color.color(0, 0, 0, 0.8));
+        buttonShadow.setRadius(0);
+        returnButton.setEffect(buttonShadow);
         
+        // --- BUTTON HOVER EFFECTS ---
+        // When the mouse enters, change color to ACCENT (rgb(232, 224, 192))
+        returnButton.setOnMouseEntered(e -> {
+            returnButton.setStyle("-fx-background-color: transparent; -fx-text-fill: rgb(232, 224, 192); -fx-cursor: hand;");
+        });
+        
+        // When the mouse leaves, change back to DIM_WHITE (rgb(144, 140, 128))
+        returnButton.setOnMouseExited(e -> {
+            returnButton.setStyle("-fx-background-color: transparent; -fx-text-fill: rgb(144, 140, 128); -fx-cursor: hand;");
+        });
         
         // when clicked, run the menu method
         returnButton.setOnAction(e -> onMenuReturn.run());
@@ -189,7 +229,7 @@ public class GameBoard extends Pane {
                     return;
                 }
                 
-                timerText.setText("Time: " + timeRemaining);
+                timerText.setText("TIME: " + timeRemaining);
                 // move players
                 player1.move(activeKeys, getWidth(), getHeight(), obstacles);
                 player2.move(activeKeys, getWidth(), getHeight(), obstacles);
@@ -222,16 +262,16 @@ public class GameBoard extends Pane {
 //    end game screen
     private void endGame() {
         gameLoop.stop();
-        timerText.setText("Time: 0");
+        timerText.setText("TIME: 0");
         gameOverText.setVisible(true);
         returnButton.setVisible(true); 
         
         if (player1.hasBomb()) {
-            gameOverText.setText("Time's Up! Player 2 Wins!");
-            gameOverText.setFill(Color.LIMEGREEN);
+            gameOverText.setText("TIME'S UP! PLAYER 2 WINS!");
+            gameOverText.setFill(Color.rgb(50, 255, 50)); 
         } else {
-            gameOverText.setText("Time's Up! Player 1 Wins!");
-            gameOverText.setFill(Color.DODGERBLUE);
+            gameOverText.setText("TIME'S UP! PLAYER 1 WINS!");
+            gameOverText.setFill(Color.rgb(50, 150, 255)); 
         }
         
         gameOverText.setX((getWidth() - gameOverText.getLayoutBounds().getWidth()) / 2);
