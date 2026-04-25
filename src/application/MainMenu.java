@@ -89,6 +89,7 @@ public class MainMenu extends StackPane {
         }
 
         // mouse interactions
+        canvas.setOnMouseMoved(e -> {
             hoveredBtn = -1;
             for (int i = 0; i < BTN_LABELS.length; i++) {
                 if (e.getX() >= MENU_X - 20 && e.getX() <= MENU_X + 250 &&
@@ -152,6 +153,7 @@ public class MainMenu extends StackPane {
         }
 
         // side vignette
+        LinearGradient leftFade = new LinearGradient(
                 0, 0, 420, 0, false, CycleMethod.NO_CYCLE,
                 new Stop(0, Color.color(0, 0, 0, 0.78)),
                 new Stop(1, Color.color(0, 0, 0, 0))
