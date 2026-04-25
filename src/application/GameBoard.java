@@ -45,7 +45,7 @@ public class GameBoard extends Pane {
     private long bombLastPassedTime = 0;
     
     // limited vision variables
-    private final Group darknessLayer;
+//    private final Group darknessLayer;
     private final Circle p1Vision;
     private final Circle p2Vision;
     
@@ -64,7 +64,7 @@ public class GameBoard extends Pane {
                              KeyCode.UP, KeyCode.DOWN, KeyCode.LEFT, KeyCode.RIGHT, !bombHolder);
 
         timerText = new Text(650, 50, "Time: 60");
-        timerText.setFont(Font.font("Arial", FontWeight.BOLD, 30));
+        timerText.setFont(Font.font("Consolas", FontWeight.BOLD, 30));
         timerText.setFill(Color.ORANGE);
 
         gameOverText = new Text(650, 400, "");
@@ -90,29 +90,10 @@ public class GameBoard extends Pane {
         // place the image
         ImageView mapBackground = new ImageView(mapImage);
         
-        // Stretch the image to fill the exact size of our window
+        // stretch the image to fill the exact size of our window
         mapBackground.setFitWidth(1400);
         mapBackground.setFitHeight(800);
-        
-        // --- LIMITED VISION LOGIC ---
-        // create a gradient for the "Flashlight" (White in the center, fades to Black at the edges)
-        RadialGradient visionLight = new RadialGradient(
-            0, 0, 0.5, 0.5, 0.5, true, CycleMethod.NO_CYCLE,
-            new Stop(0, Color.WHITE),
-            new Stop(1, Color.BLACK)
-        );
-
-        // create the vision circles
-        p1Vision = new Circle(75, visionLight);
-        p2Vision = new Circle(75, visionLight);
-
-        // create a pitch-black background
-        Rectangle darkBackground = new Rectangle(1400, 800, Color.BLACK);
-
-        // group them together and apply the Multiply blend mode
-        darknessLayer = new Group(darkBackground, p1Vision, p2Vision);
-        darknessLayer.setBlendMode(BlendMode.MULTIPLY);
-        
+     
      // --- RANDOM OBSTACLE SETUP ---
         int numberOfObstacles = 6; 
         double obstacleSize = 80; //obstacle size
@@ -147,11 +128,43 @@ public class GameBoard extends Pane {
             obstacles.add(newWall);
         }
         
-        // add everything on the screen
-        this.getChildren().add(mapBackground);
-        this.getChildren().addAll(player1, player2);
-        this.getChildren().addAll(obstacles); // add walls before the darkness
-        this.getChildren().addAll( timerText, gameOverText, returnButton);
+        // ---FOG OF WAR LOGIC ---
+        
+        // THE CLOUDS (Bottom Layer)
+        // draw the clouds normally at the very back of the screen.
+        Image fogImg = new Image(getClass().getResource("/screens/cloud.png").toExternalForm());
+        ImagePattern fogTexture = new ImagePattern(fogImg);
+        Rectangle fogBackground = new Rectangle(1400, 800, fogTexture);
+
+        // The Flashlights
+        // White acts as "Visible", Transparent acts as "Invisible"
+        RadialGradient visionLight = new RadialGradient(
+            0, 0, 0.5, 0.5, 0.5, true, CycleMethod.NO_CYCLE,
+            new Stop(0, Color.WHITE),
+            new Stop(1, Color.TRANSPARENT) 
+        );
+        p1Vision = new Circle(110, visionLight);
+        p2Vision = new Circle(110, visionLight);
+        Group visionMask = new Group(p1Vision, p2Vision);
+
+        // THE GAME WORLD 
+        // group everything that should be hidden by the fog into one container
+        Group gameWorld = new Group();
+        gameWorld.getChildren().add(mapBackground); 
+        gameWorld.getChildren().addAll(obstacles);
+        gameWorld.getChildren().addAll(player1, player2);
+
+        // inside the white pixels of the visionMask!
+        gameWorld.setBlendMode(BlendMode.SRC_ATOP);
+
+        // package the mask and the game world together and turn on caching. 
+        // This forces JavaFX to cut the holes properly before placing it over the clouds.
+        Group maskedWorld = new Group(visionMask, gameWorld);
+        maskedWorld.setCache(true); 
+
+        // ADD TO SCREEN
+        this.getChildren().addAll(fogBackground, maskedWorld, timerText, gameOverText, returnButton);
+        
         startGame();
     }
 
@@ -182,9 +195,9 @@ public class GameBoard extends Pane {
                 player2.move(activeKeys, getWidth(), getHeight(), obstacles);
 
                 // make the vision circles follow the players
-                p1Vision.setCenterX(player1.getCenterX());
+                p1Vision.setCenterX(player1.getCenterX() - 30);
                 p1Vision.setCenterY(player1.getCenterY());
-                p2Vision.setCenterX(player2.getCenterX());
+                p2Vision.setCenterX(player2.getCenterX() - 30);
                 p2Vision.setCenterY(player2.getCenterY());
                 
                 checkCollision(now);
