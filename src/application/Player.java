@@ -7,6 +7,11 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.text.Text;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontWeight;
+import javafx.scene.paint.Color;
+import javafx.scene.effect.DropShadow;
 
 public class Player extends ImageView {
     
@@ -31,12 +36,24 @@ public class Player extends ImageView {
     private int animationTick = 0;
     private final int animationSpeedX = 12; // animation for Left/Right
     private final int animationSpeedY = 10; // animation for Up/Down
+    private final Text nameTag; //name
     
     private final KeyCode upKey, downKey, leftKey, rightKey;
 
-    public Player(double startX, double startY, String prefix, 
-                  KeyCode up, KeyCode down, KeyCode left, KeyCode right, boolean startsWithBomb) {
+    public Player(double startX, double startY, 
+                  KeyCode up, KeyCode down, KeyCode left, KeyCode right, boolean startsWithBomb, String playerName) {
         
+    	//name field
+    	nameTag = new Text(playerName);
+        nameTag.setFont(Font.font("Monospaced", FontWeight.BOLD, 14));
+        nameTag.setFill(Color.WHITE);
+        DropShadow tagShadow = new DropShadow();
+        tagShadow.setOffsetY(2);
+        tagShadow.setOffsetX(2);
+        tagShadow.setColor(Color.BLACK);
+        tagShadow.setRadius(0);
+        nameTag.setEffect(tagShadow);
+    	
         String[] dirs = {"down", "left", "right", "up"};
         
         for (int d = 0; d < 4; d++) {
@@ -75,6 +92,7 @@ public class Player extends ImageView {
         this.hasBomb = startsWithBomb;
         
         updateAppearance();
+        updateNameTagPosition();
     }
 
     // --- SAFETY NET METHOD ---
@@ -149,6 +167,7 @@ public class Player extends ImageView {
         if (wasMoving != isMoving || oldFacing != facing) {
             updateAppearance();
         }
+        updateNameTagPosition();
     }
 
     public boolean hasBomb() {
@@ -180,7 +199,21 @@ public class Player extends ImageView {
         
         this.setImage(imageToDraw);
     }
+    private void updateNameTagPosition() {
+        //actual width of the text
+        double textWidth = nameTag.getLayoutBounds().getWidth();
+        
+        // actual rendered width of the player sprite
+        double playerWidth = this.getBoundsInParent().getWidth(); 
+        
+        // center the text 
+        nameTag.setX(getX() + (playerWidth / 2) - (textWidth / 2));
+        
+        // float it 5 pixels above the character's head
+        nameTag.setY(getY() - 5); 
+    }
     
     public double getCenterX() { return getX() + (size / 2); }
     public double getCenterY() { return getY() + (size / 2); }
+    public Text getNameTag() { return nameTag; }
 }

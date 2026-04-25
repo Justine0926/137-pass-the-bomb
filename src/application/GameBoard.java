@@ -58,11 +58,11 @@ public class GameBoard extends Pane {
     
     // we now pass a Runnable so the board knows how to go back to the menu
     public GameBoard(Runnable onMenuReturn) {
-        player1 = new Player(200, 300, "", 
-                             KeyCode.W, KeyCode.S, KeyCode.A, KeyCode.D, bombHolder);
+        player1 = new Player(200, 300, 
+                             KeyCode.W, KeyCode.S, KeyCode.A, KeyCode.D, bombHolder, "PLAYER 1");
 
-        player2 = new Player(1100, 300, "", 
-                             KeyCode.UP, KeyCode.DOWN, KeyCode.LEFT, KeyCode.RIGHT, !bombHolder);
+        player2 = new Player(1100, 300, 
+                             KeyCode.UP, KeyCode.DOWN, KeyCode.LEFT, KeyCode.RIGHT, !bombHolder, "PLAYER 2");
         
         // --- TIMER TEXT ---
         timerText = new Text(650, 50, "TIME: 60");
@@ -193,7 +193,7 @@ public class GameBoard extends Pane {
         gameWorld.getChildren().add(mapBackground); 
         gameWorld.getChildren().addAll(obstacles);
         gameWorld.getChildren().addAll(player1, player2);
-
+        gameWorld.getChildren().addAll(player1.getNameTag(), player2.getNameTag());
         // inside the white pixels of the visionMask!
         gameWorld.setBlendMode(BlendMode.SRC_ATOP);
 
