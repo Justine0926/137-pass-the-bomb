@@ -26,7 +26,7 @@ public class MainMenu extends StackPane {
     static final Color ACCENT     = Color.rgb(0xE8, 0xE0, 0xC0);
 
     // layout
-    static final int W = 800, H = 600;
+    static final int W = 1400, H = 800;
 
     // title region
     static final int TITLE_X  = 55;
@@ -73,7 +73,7 @@ public class MainMenu extends StackPane {
         // background setup
 
         try {
-            InputStream is = getClass().getResourceAsStream("/menu_background.png");
+            InputStream is = getClass().getResourceAsStream("/screens/menu_background.png");
             if (is != null) {
                 bg = new Image(is);
             } else {
