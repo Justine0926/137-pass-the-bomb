@@ -2,9 +2,9 @@ package application;
 	
 import javafx.application.Application;
 import javafx.scene.Scene;
-import javafx.stage.Stage;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
+import javafx.stage.Stage;
 
 public class Main extends Application {
     

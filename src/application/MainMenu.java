@@ -1,5 +1,9 @@
 package application;
 
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Random;
+
 import javafx.animation.AnimationTimer;
 import javafx.geometry.Pos;
 import javafx.scene.canvas.Canvas;
@@ -12,9 +16,6 @@ import javafx.scene.paint.LinearGradient;
 import javafx.scene.paint.Stop;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Random;
 
 public class MainMenu extends StackPane {
 
