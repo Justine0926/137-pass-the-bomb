@@ -2,6 +2,8 @@ package application;
 	
 import javafx.application.Application;
 import javafx.scene.Scene;
+import javafx.scene.media.Media;
+import javafx.scene.media.MediaPlayer;
 import javafx.stage.Stage;
 
 public class Main extends Application {
@@ -10,11 +12,20 @@ public class Main extends Application {
     private final int WIDTH = 1400;
     private final int HEIGHT = 800;
 
+    private MediaPlayer bgMusic; // added for background music
+
     @Override
     public void start(Stage primaryStage) {
         window = primaryStage;
         window.setTitle("boom tarat tarat");
         window.setResizable(false);
+
+        // background music
+        Media sound = new Media(getClass().getResource("/music/bg_music.wav").toExternalForm());
+        bgMusic = new MediaPlayer(sound);
+        bgMusic.setCycleCount(MediaPlayer.INDEFINITE); // loop forever
+        bgMusic.setVolume(0.5); // volume 0.0 to 1.0
+        bgMusic.play();
         
         // show the main menu when the app first opens
         showMainMenu();

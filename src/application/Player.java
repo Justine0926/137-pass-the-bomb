@@ -3,15 +3,15 @@ package application;
 import java.util.List;
 import java.util.Set;
 
+import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.KeyCode;
+import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
-import javafx.scene.text.Text;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
-import javafx.scene.paint.Color;
-import javafx.scene.effect.DropShadow;
+import javafx.scene.text.Text;
 
 public class Player extends ImageView {
     
@@ -216,4 +216,9 @@ public class Player extends ImageView {
     public double getCenterX() { return getX() + (size / 2); }
     public double getCenterY() { return getY() + (size / 2); }
     public Text getNameTag() { return nameTag; }
+    
+    public Direction getFacing() {
+        return facing;
+    }
 }
+
