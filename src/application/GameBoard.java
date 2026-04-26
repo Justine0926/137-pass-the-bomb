@@ -24,6 +24,7 @@ import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.paint.ImagePattern;
 import javafx.scene.effect.DropShadow;
+import javafx.scene.media.AudioClip;
 // THIS IS THE CLASS FOR THE GAMEBOARD/MAP
 // where the game takes place
 
@@ -31,6 +32,7 @@ public class GameBoard extends Pane {
 	//initialize players
     private final Player player1;
     private final Player player2;
+    private Group gameWorld;
     
     //screen layout
     private final Text timerText;
@@ -40,6 +42,7 @@ public class GameBoard extends Pane {
     //moves storage
     private final Set<KeyCode> activeKeys = new HashSet<>();
     private AnimationTimer gameLoop;
+    private ImageView deathGif;
     
     private final long gameDurationNanos = 5_000_000_000L;
     private final long cooldownNanos = 1_000_000_000L;
@@ -49,6 +52,11 @@ public class GameBoard extends Pane {
 //    private final Group darknessLayer;
     private final Circle p1Vision;
     private final Circle p2Vision;
+    
+    //sound
+    private AudioClip fuseSound;
+    private AudioClip explosionSound;
+    private boolean fusePlayed = false;
     
     // obstacles
     private final List<Rectangle> obstacles = new ArrayList<>();
@@ -189,13 +197,19 @@ public class GameBoard extends Pane {
 
         // THE GAME WORLD 
         // group everything that should be hidden by the fog into one container
-        Group gameWorld = new Group();
+        gameWorld = new Group();
         gameWorld.getChildren().add(mapBackground); 
         gameWorld.getChildren().addAll(obstacles);
         gameWorld.getChildren().addAll(player1, player2);
         gameWorld.getChildren().addAll(player1.getNameTag(), player2.getNameTag());
         // inside the white pixels of the visionMask!
         gameWorld.setBlendMode(BlendMode.SRC_ATOP);
+        
+        //sound
+        fuseSound = new AudioClip(getClass().getResource("/music/fuse_music.wav").toExternalForm());
+        explosionSound = new AudioClip(getClass().getResource("/music/explosion_music.wav").toExternalForm());
+        
+        explosionSound.setVolume(1.0);
 
         // package the mask and the game world together and turn on caching. 
         // This forces JavaFX to cut the holes properly before placing it over the clouds.
@@ -229,6 +243,11 @@ public class GameBoard extends Pane {
                     return;
                 }
                 
+                if (timeRemaining <= 5 && !fusePlayed) {
+                    fuseSound.play();
+                    fusePlayed = true;
+                }
+                
                 timerText.setText("TIME: " + timeRemaining);
                 // move players
                 player1.move(activeKeys, getWidth(), getHeight(), obstacles);
@@ -260,20 +279,60 @@ public class GameBoard extends Pane {
     }
     
 //    end game screen
-    private void endGame() {
-        gameLoop.stop();
-        timerText.setText("TIME: 0");
-        gameOverText.setVisible(true);
-        returnButton.setVisible(true); 
-        
-        if (player1.hasBomb()) {
-            gameOverText.setText("TIME'S UP! PLAYER 2 WINS!");
-            gameOverText.setFill(Color.rgb(50, 255, 50)); 
-        } else {
-            gameOverText.setText("TIME'S UP! PLAYER 1 WINS!");
-            gameOverText.setFill(Color.rgb(50, 150, 255)); 
-        }
-        
-        gameOverText.setX((getWidth() - gameOverText.getLayoutBounds().getWidth()) / 2);
+private void endGame() {
+    gameLoop.stop();
+    explosionSound.play();
+    fuseSound.stop();
+
+    timerText.setText("TIME: 0");
+
+    Player loser = player1.hasBomb() ? player1 : player2;
+
+    String gifPath = "/sprites/die/with_bomb_front.gif";
+
+    switch (loser.getFacing()) {
+        case LEFT:
+            gifPath = "/sprites/die/with_bomb_left.gif";
+            break;
+
+        case RIGHT:
+            gifPath = "/sprites/die/with_bomb_right.gif";
+            break;
+
+        case UP:
+            gifPath = "/sprites/die/with_bomb_back.gif";
+            break;
+
+        case DOWN:
+            gifPath = "/sprites/die/with_bomb_front.gif";
+            break;
     }
+
+    Image gif = new Image(getClass().getResource(gifPath).toExternalForm());
+    deathGif = new ImageView(gif);
+
+    deathGif.setFitWidth(120);
+    deathGif.setFitHeight(120);
+
+    deathGif.setX(loser.getX() - 50);
+    deathGif.setY(loser.getY() - 50);
+
+    gameWorld.getChildren().remove(loser);
+    gameWorld.getChildren().remove(loser.getNameTag());
+
+    gameWorld.getChildren().add(deathGif);
+
+    gameOverText.setVisible(true);
+    returnButton.setVisible(true);
+
+    if (player1.hasBomb()) {
+        gameOverText.setText("TIME'S UP! PLAYER 2 WINS!");
+        gameOverText.setFill(Color.rgb(50,255,50));
+    } else {
+        gameOverText.setText("TIME'S UP! PLAYER 1 WINS!");
+        gameOverText.setFill(Color.rgb(50,150,255));
+    }
+
+    gameOverText.setX((1400 - gameOverText.getLayoutBounds().getWidth()) / 2);
+	}
 }

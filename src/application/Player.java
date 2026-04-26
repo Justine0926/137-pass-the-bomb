@@ -216,4 +216,9 @@ public class Player extends ImageView {
     public double getCenterX() { return getX() + (size / 2); }
     public double getCenterY() { return getY() + (size / 2); }
     public Text getNameTag() { return nameTag; }
+    
+    public Direction getFacing() {
+        return facing;
+    }
 }
+
