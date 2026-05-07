@@ -56,14 +56,16 @@ public class MainMenu extends StackPane {
     Random rnd = new Random();
 
     Runnable onStart;
+    Runnable onMultiplayer;
     Runnable onExit;
 
     // font sizes
     static final int TITLE_FONT_SIZE = 72;
     static final int MENU_FONT_SIZE  = 22;
 
-    public MainMenu(Runnable onStart, Runnable onExit) {
+    public MainMenu(Runnable onStart, Runnable onMultiplayer, Runnable onExit) {
         this.onStart = onStart;
+        this.onMultiplayer = onMultiplayer;
         this.onExit = onExit;
 
         this.setAlignment(Pos.CENTER);
@@ -127,6 +129,7 @@ public class MainMenu extends StackPane {
     void handleBtn(int i) {
         switch (i) {
             case 0 -> onStart.run();
+            case 1 -> onMultiplayer.run();
             case 4 -> onExit.run();
             default -> System.out.println("Clicked " + BTN_LABELS[i] + " ... NotImplemented");
         }
