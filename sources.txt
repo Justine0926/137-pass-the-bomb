@@ -1,5 +1,8 @@
 src/module-info.java
+src/application/GameSettings.java
+src/application/HowToPlayScreen.java
 src/application/MainMenu.java
+src/application/SettingsScreen.java
 src/application/Player.java
 src/application/GameBoard.java
 src/application/Main.java

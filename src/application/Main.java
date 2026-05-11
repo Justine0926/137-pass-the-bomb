@@ -26,6 +26,11 @@ public class Main extends Application {
         bgMusic.setCycleCount(MediaPlayer.INDEFINITE); // loop forever
         bgMusic.setVolume(0.5); // volume 0.0 to 1.0
         bgMusic.play();
+
+        // Listen for settings changes
+        GameSettings.onSettingsUpdated = () -> {
+            bgMusic.setMute(!GameSettings.musicEnabled);
+        };
         
         // show the main menu when the app first opens
         showMainMenu();

@@ -45,7 +45,7 @@ public class GameBoard extends Pane {
 	private AnimationTimer gameLoop;
 	private ImageView deathGif;
 
-	private final long gameDurationNanos = 90_000_000_000L;
+	private final long gameDurationNanos = GameSettings.roundDurationSeconds * 1_000_000_000L;
 	private final long cooldownNanos = 1_000_000_000L;
 	private long bombLastPassedTime = 0;
 
@@ -80,7 +80,7 @@ public class GameBoard extends Pane {
 				KeyCode.UP, KeyCode.DOWN, KeyCode.LEFT, KeyCode.RIGHT, !bombHolder, "PLAYER 2");
 
 		// --- TIMER TEXT ---
-		timerText = new Text(650, 50, "TIME: 90");
+		timerText = new Text(650, 50, "TIME: " + GameSettings.roundDurationSeconds);
 		timerText.setFont(Font.font("Monospaced", FontWeight.BOLD, 30));
 		timerText.setFill(Color.rgb(0xE8, 0xE0, 0xC0)); // MainMenu ACCENT color
 		timerText.setStroke(Color.rgb(0x08, 0x08, 0x08)); // MainMenu BLACK
@@ -214,7 +214,11 @@ public class GameBoard extends Pane {
 			freezeTraps[i] = new Circle(20, Color.CYAN);
 			freezeTraps[i].setStroke(Color.WHITE);
 			freezeTraps[i].setStrokeWidth(3);
-			spawnTrap(freezeTraps[i]);
+			if (GameSettings.powerUpsEnabled) {
+				spawnTrap(freezeTraps[i]);
+			} else {
+				freezeTraps[i].setVisible(false);
+			}
 			gameWorld.getChildren().add(freezeTraps[i]);
 		}
 
@@ -227,7 +231,12 @@ public class GameBoard extends Pane {
 		fuseSound = new AudioClip(getClass().getResource("/music/fuse_music.wav").toExternalForm());
 		explosionSound = new AudioClip(getClass().getResource("/music/explosion_music.wav").toExternalForm());
 
-		explosionSound.setVolume(1.0);
+		if (!GameSettings.sfxEnabled) {
+			fuseSound.setVolume(0);
+			explosionSound.setVolume(0);
+		} else {
+			explosionSound.setVolume(1.0);
+		}
 
 		// package the mask and the game world together and turn on caching. 
 		// This forces JavaFX to cut the holes properly before placing it over the clouds.
@@ -324,7 +333,7 @@ public class GameBoard extends Pane {
 		}
 
 		// PowerUp Spawning Logic
-		if (now - lastPowerUpSpawnTime > 5_000_000_000L && Math.random() < 0.05) {
+		if (GameSettings.powerUpsEnabled && now - lastPowerUpSpawnTime > 5_000_000_000L && Math.random() < 0.05) {
 			for (Circle trap : freezeTraps) {
 				if (!trap.isVisible()) {
 					spawnTrap(trap);
@@ -335,16 +344,18 @@ public class GameBoard extends Pane {
 		}
 
 		// PowerUp Collision Logic (freezes the player who touches it)
-		for (Circle trap : freezeTraps) {
-			if (trap.isVisible()) {
-				if (player1.getBoundsInParent().intersects(trap.getBoundsInParent())) {
-					trap.setVisible(false);
-					p1FrozenUntil = now + 5_000_000_000L; // 5 seconds
-					player1.setFrozen(true);
-				} else if (player2.getBoundsInParent().intersects(trap.getBoundsInParent())) {
-					trap.setVisible(false);
-					p2FrozenUntil = now + 5_000_000_000L; // 5 seconds
-					player2.setFrozen(true);
+		if (GameSettings.powerUpsEnabled) {
+			for (Circle trap : freezeTraps) {
+				if (trap.isVisible()) {
+					if (player1.getBoundsInParent().intersects(trap.getBoundsInParent())) {
+						trap.setVisible(false);
+						p1FrozenUntil = now + 5_000_000_000L; // 5 seconds
+						player1.setFrozen(true);
+					} else if (player2.getBoundsInParent().intersects(trap.getBoundsInParent())) {
+						trap.setVisible(false);
+						p2FrozenUntil = now + 5_000_000_000L; // 5 seconds
+						player2.setFrozen(true);
+					}
 				}
 			}
 		}

@@ -127,6 +127,20 @@ public class MainMenu extends StackPane {
     void handleBtn(int i) {
         switch (i) {
             case 0 -> onStart.run();
+            case 2 -> {
+                // Show How To Play as an overlay
+                HowToPlayScreen overlay = new HowToPlayScreen(() -> {
+                    this.getChildren().remove(this.getChildren().size() - 1); // remove the overlay
+                });
+                this.getChildren().add(overlay);
+            }
+            case 3 -> {
+                // Show Settings as an overlay
+                SettingsScreen overlay = new SettingsScreen(() -> {
+                    this.getChildren().remove(this.getChildren().size() - 1); // remove the overlay
+                });
+                this.getChildren().add(overlay);
+            }
             case 4 -> onExit.run();
             default -> System.out.println("Clicked " + BTN_LABELS[i] + " ... NotImplemented");
         }
