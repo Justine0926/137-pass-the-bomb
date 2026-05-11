@@ -27,16 +27,16 @@ public class MainMenu extends StackPane {
     static final Color ACCENT     = Color.rgb(0xE8, 0xE0, 0xC0);
 
     // layout
-    static final int W = 1400, H = 800;
+    static final int W = 700, H = 400;
 
     // title region
-    static final int TITLE_X  = 55;
+    static final int TITLE_X  = 45;
     static final int TITLE_Y  = 180;
 
     // menu layout
     static final int MENU_X   = 55;
-    static final int MENU_Y0  = 300;
-    static final int MENU_GAP = 50;
+    static final int MENU_Y0  = 250;
+    static final int MENU_GAP = 30;
 
     static final String[] BTN_LABELS = {
         "NEW GAME", "MULTIPLAYER", "HOW TO PLAY", "SETTINGS", "EXIT"

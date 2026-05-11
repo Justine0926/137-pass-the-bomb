@@ -45,7 +45,7 @@ public class GameBoard extends Pane {
 	private AnimationTimer gameLoop;
 	private ImageView deathGif;
 
-	private final long gameDurationNanos = 30_000_000_000L;
+	private final long gameDurationNanos = 5_000_000_000L;
 	private final long cooldownNanos = 1_000_000_000L;
 	private long bombLastPassedTime = 0;
 
@@ -67,14 +67,14 @@ public class GameBoard extends Pane {
 
 	// we now pass a Runnable so the board knows how to go back to the menu
 	public GameBoard(Runnable onMenuReturn) {
-		player1 = new Player(200, 300, 
+		player1 = new Player(200, 200, 
 				KeyCode.W, KeyCode.S, KeyCode.A, KeyCode.D, bombHolder, "PLAYER 1");
 
-		player2 = new Player(1100, 300, 
+		player2 = new Player(500, 200, 
 				KeyCode.UP, KeyCode.DOWN, KeyCode.LEFT, KeyCode.RIGHT, !bombHolder, "PLAYER 2");
 
 		// --- TIMER TEXT ---
-		timerText = new Text(650, 50, "TIME: 60");
+		timerText = new Text(300, 50, "TIME: 60");
 		timerText.setFont(Font.font("Monospaced", FontWeight.BOLD, 30));
 		timerText.setFill(Color.rgb(0xE8, 0xE0, 0xC0)); // MainMenu ACCENT color
 		timerText.setStroke(Color.rgb(0x08, 0x08, 0x08)); // MainMenu BLACK
@@ -89,14 +89,14 @@ public class GameBoard extends Pane {
 		timerText.setEffect(timerShadow);
 
 		// --- GAME OVER TEXT ---
-		gameOverText = new Text(600, 400, "");
-		gameOverText.setFont(Font.font("Monospaced", FontWeight.BOLD, 50));
+		gameOverText = new Text(150, 180, "");
+		gameOverText.setFont(Font.font("Monospaced", FontWeight.BOLD, 22));
 		gameOverText.setStroke(Color.rgb(0x08, 0x08, 0x08)); 
-		gameOverText.setStrokeWidth(3); // Slightly thicker outline for bigger text
+		gameOverText.setStrokeWidth(1); // Slightly thicker outline for bigger text
 
 		DropShadow gameOverShadow = new DropShadow();
-		gameOverShadow.setOffsetY(6);
-		gameOverShadow.setOffsetX(6);
+		gameOverShadow.setOffsetY(2);
+		gameOverShadow.setOffsetX(2);
 		gameOverShadow.setColor(Color.color(0, 0, 0, 0.8));
 		gameOverShadow.setRadius(0);
 		gameOverText.setEffect(gameOverShadow);
@@ -105,15 +105,15 @@ public class GameBoard extends Pane {
 
 		// ---RETURN BUTTON ---
 		returnButton = new Button("BACK TO MAIN MENU"); 
-		returnButton.setFont(Font.font("Monospaced", FontWeight.BOLD, 22)); // Matches MENU_FONT_SIZE
+		returnButton.setFont(Font.font("Monospaced", FontWeight.BOLD, 18)); // Matches MENU_FONT_SIZE
 		returnButton.setStyle("-fx-background-color: transparent; -fx-text-fill: rgb(144, 140, 128); -fx-cursor: hand;");
-		returnButton.setPrefWidth(400);
-		returnButton.setLayoutX(500); 
-		returnButton.setLayoutY(420); 
+		returnButton.setPrefWidth(300);
+		returnButton.setLayoutX(200); 
+		returnButton.setLayoutY(200); 
 		returnButton.setVisible(false); 
 		DropShadow buttonShadow = new DropShadow();
-		buttonShadow.setOffsetY(3);
-		buttonShadow.setOffsetX(3);
+		buttonShadow.setOffsetY(2);
+		buttonShadow.setOffsetX(2);
 		buttonShadow.setColor(Color.color(0, 0, 0, 0.8));
 		buttonShadow.setRadius(0);
 		returnButton.setEffect(buttonShadow);
@@ -140,12 +140,12 @@ public class GameBoard extends Pane {
 		ImageView mapBackground = new ImageView(mapImage);
 
 		// stretch the image to fill the exact size of our window
-		mapBackground.setFitWidth(1400);
-		mapBackground.setFitHeight(800);
+		mapBackground.setFitWidth(700);
+		mapBackground.setFitHeight(400);
 
 		// --- RANDOM OBSTACLE SETUP ---
 		int numberOfObstacles = 6; 
-		double obstacleSize = 80; //obstacle size
+		double obstacleSize = 40; //obstacle size
 
 		//load image
 		Image crateImg = new Image(getClass().getResource("/sprites/obstacle/fence.png").toExternalForm());
@@ -157,8 +157,8 @@ public class GameBoard extends Pane {
 
 			while (!isSafeSpot) {
 				// randomize position 
-				double randomX = Math.random() * (1360 - obstacleSize);
-				double randomY = Math.random() * (800 - obstacleSize);
+				double randomX = Math.random() * (660 - obstacleSize);
+				double randomY = Math.random() * (400 - obstacleSize);
 
 				// build the physical hitbox
 				newWall = new Rectangle(randomX, randomY, obstacleSize, obstacleSize);
@@ -183,7 +183,7 @@ public class GameBoard extends Pane {
 		// draw the clouds normally at the very back of the screen.
 		Image fogImg = new Image(getClass().getResource("/screens/cloud.png").toExternalForm());
 		ImagePattern fogTexture = new ImagePattern(fogImg);
-		Rectangle fogBackground = new Rectangle(1400, 800, fogTexture);
+		Rectangle fogBackground = new Rectangle(700, 400, fogTexture);
 
 		// The Flashlights
 		// White acts as "Visible", Transparent acts as "Invisible"
@@ -313,8 +313,8 @@ public class GameBoard extends Pane {
 			Image gif = new Image(getClass().getResource(gifPath).toExternalForm());
 			deathGif = new ImageView(gif);
 
-			deathGif.setFitWidth(120);
-			deathGif.setFitHeight(120);
+			deathGif.setFitWidth(60);
+			deathGif.setFitHeight(60);
 
 			deathGif.setX(loser.getX());
 			deathGif.setY(loser.getY());
@@ -341,7 +341,7 @@ public class GameBoard extends Pane {
 			}
 
 			// Recalculate layout dynamically
-			gameOverText.setX((1400 - gameOverText.getLayoutBounds().getWidth()) / 2);
+			gameOverText.setX((700 - gameOverText.getLayoutBounds().getWidth()) / 2);
 
 		}); // End of Platform.runLater
 	}
