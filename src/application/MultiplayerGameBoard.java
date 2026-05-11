@@ -43,11 +43,12 @@ public class MultiplayerGameBoard extends Pane {
 
 	private final Text timerText;
 	private final Text gameOverText;
-	private final Button returnButton; 
+	private final Button returnButton;
+	private final Text countdownText;
 
 	private final Set<KeyCode> activeKeys = new HashSet<>();
 	private AnimationTimer gameLoop;
-	private ImageView deathGif;
+//	private ImageView deathGif;
 
 	private final long roundDurationNanos = 5_000_000_000L; 
 	private final long cooldownNanos = 1_000_000_000L;
@@ -60,6 +61,8 @@ public class MultiplayerGameBoard extends Pane {
 
 	private final List<Rectangle> obstacles = new ArrayList<>();
 	private boolean isHost;
+	
+	
 
 	public MultiplayerGameBoard(Runnable onMenuReturn, GameClient client, String myName, List<String> allPlayers, boolean isHost) {
 		this.gameClient = client;
@@ -77,6 +80,14 @@ public class MultiplayerGameBoard extends Pane {
 		timerShadow.setColor(Color.color(0, 0, 0, 0.7)); timerShadow.setRadius(0); 
 		timerText.setEffect(timerShadow);
 
+		// --- COUNTDOWN TEXT ---
+		countdownText = new Text(325, 220, "");
+		countdownText.setFont(Font.font("Monospaced", FontWeight.BOLD, 80));
+		countdownText.setFill(Color.rgb(0xFF, 0x45, 0x00)); // Orange-Red
+		countdownText.setStroke(Color.BLACK);
+		countdownText.setStrokeWidth(3);
+		countdownText.setVisible(false);
+		
 		gameOverText = new Text(150, 180, "");
 		gameOverText.setFont(Font.font("Monospaced", FontWeight.BOLD, 22));
 		gameOverText.setStroke(Color.rgb(0x08, 0x08, 0x08)); gameOverText.setStrokeWidth(1); 
@@ -120,15 +131,8 @@ public class MultiplayerGameBoard extends Pane {
 			boolean startsWithBomb = (i == 0); 
 			int cornerIndex = i % 4;
 
-			// 2. Find how many "extra" groups of 4 we have.
-			// Players 0-3 = Cycle 0 (No offset)
-			// Players 4-7 = Cycle 1 (1 offset shift)
-			// Players 8-11 = Cycle 2 (2 offset shifts)
 			int cycle = i / 4;
 
-			// 3. Calculate the X offset (70 pixels per extra cycle).
-			// If they are on the Left side (baseX is 50), ADD the offset to push them right.
-			// If they are on the Right side (baseX is 590), SUBTRACT the offset to push them left.
 			double offsetX = (baseX[cornerIndex] < 350) ? (cycle * 70) : -(cycle * 70);
 
 			double startX = baseX[cornerIndex] + offsetX;
@@ -149,7 +153,7 @@ public class MultiplayerGameBoard extends Pane {
 				// This is the magic rule that cuts the hole out!
 				fogPath.setFillRule(javafx.scene.shape.FillRule.EVEN_ODD); 
 				//				fogPath.setFill(fogTexture);
-				fogPath.setFill(Color.rgb(15, 20, 25, 0.98));
+				fogPath.setFill(Color.BLACK);
 				fogPath.setStroke(Color.TRANSPARENT);
 
 				// 1. Draw the outer screen bounds (700x400)
@@ -169,7 +173,7 @@ public class MultiplayerGameBoard extends Pane {
 				fogPath.getElements().addAll(holeStart, holeArc1, holeArc2, new javafx.scene.shape.ClosePath());
 
 				// 3. The soft dark edge
-				fogFade = new Circle(radius);
+				fogFade = new Circle(radius + 1);
 				RadialGradient fadeGradient = new RadialGradient(
 						0, 0, 0.5, 0.5, 0.5, true, CycleMethod.NO_CYCLE,
 						new Stop(0, Color.TRANSPARENT), 
@@ -237,7 +241,7 @@ public class MultiplayerGameBoard extends Pane {
 		// 3. UI Elements (Timer, Text)
 		// Notice there are ZERO BlendModes or Caches used here!
 		this.getChildren().addAll(gameWorld, fogOverlay, timerText, gameOverText, returnButton);
-
+		this.getChildren().add(countdownText);
 		startGame();
 	}
 
@@ -346,35 +350,43 @@ public class MultiplayerGameBoard extends Pane {
 		if (loser != null) {
 			final Player finalLoser = loser;
 			Platform.runLater(() -> {
-				// 1. Determine the correct path based on facing direction
-				String gifPath = "/sprites/die/with_bomb_front.gif";
+			    timerText.setText("TIME: 0");
+			    
+			    String gifPath = "/sprites/die/with_bomb_front.gif";
+			    switch (finalLoser.getFacing()) {
+			        case LEFT:  gifPath = "/sprites/die/with_bomb_left.gif"; break;
+			        case RIGHT: gifPath = "/sprites/die/with_bomb_right.gif"; break;
+			        case UP:    gifPath = "/sprites/die/with_bomb_back.gif"; break;
+			        case DOWN:  gifPath = "/sprites/die/with_bomb_front.gif"; break;
+			    }
 
-				switch (finalLoser.getFacing()) {
-				case LEFT: gifPath = "/sprites/die/with_bomb_left.gif"; break;
-				case RIGHT: gifPath = "/sprites/die/with_bomb_right.gif"; break;
-				case UP: gifPath = "/sprites/die/with_bomb_back.gif"; break;
-				case DOWN: gifPath = "/sprites/die/with_bomb_front.gif"; break;
-				}
+			    Image freshGif = new Image(getClass().getResource(gifPath).toExternalForm());
+			    // Create a local final reference for the specific death sprite
+			    final ImageView currentDeathSprite = new ImageView(freshGif);
 
-				// 2. Load using the URL (to keep animation data intact)
-				Image freshGif = new Image(getClass().getResource(gifPath).toExternalForm());
-				deathGif = new ImageView(freshGif);
+			    currentDeathSprite.setX(finalLoser.getX()); 
+			    currentDeathSprite.setY(finalLoser.getY());
 
-				// --- CRITICAL FIX ---
-				// Do NOT use setFitWidth() or setFitHeight() here! 
-				// Let the native 60x60 file size dictate the dimensions so JavaFX doesn't freeze the timeline.
-				deathGif.setX(finalLoser.getX()); 
-				deathGif.setY(finalLoser.getY());
+			    finalLoser.setVisible(false);
+			    finalLoser.getNameTag().setVisible(false);
 
-				finalLoser.setVisible(false);
-				finalLoser.getNameTag().setVisible(false);
+			    if (finalLoser == localPlayer && fogOverlay != null) {
+			        fogOverlay.setVisible(false); 
+			    }
 
-				// Turn off the fog hole if the local player dies
-				if (finalLoser == localPlayer && fogOverlay != null) {
-					fogOverlay.setVisible(false); 
-				}
+			    // Add it to the screen
+			    getChildren().add(currentDeathSprite);
 
-				getChildren().add(deathGif);
+			    // --- CLEANUP LOGIC ---
+			    // Create a pause that lasts exactly as long as your GIF (adjust millis as needed)
+			    javafx.animation.PauseTransition cleanup = new javafx.animation.PauseTransition(javafx.util.Duration.millis(1500));
+			    
+			    cleanup.setOnFinished(event -> {
+			        getChildren().remove(currentDeathSprite);
+			        System.out.println("Cleaned up dead player sprite.");
+			    });
+			    
+			    cleanup.play();
 			});
 
 			activePlayers.remove(loserName);
@@ -391,16 +403,7 @@ public class MultiplayerGameBoard extends Pane {
 					gameOverText.setVisible(true); returnButton.setVisible(true);
 				});
 			} else {
-				// If the game continues, give the bomb to a DETERMINISTIC survivor
-				List<Player> survivors = new ArrayList<>(activePlayers.values());
-
-				// Everyone sorts the list alphabetically by name to guarantee the exact same order
-				survivors.sort((p1, p2) -> p1.getNameTag().getText().compareTo(p2.getNameTag().getText()));
-
-				// The first survivor alphabetically gets the bomb! No randomness, no desync.
-				survivors.get(0).setBomb(true);
-
-				roundStartTime = now; // Restart the timer
+				startIntermissionCountdown();
 			}
 		}
 	}
@@ -441,6 +444,40 @@ public class MultiplayerGameBoard extends Pane {
 			});
 		}
 	}
+	
+	private void startIntermissionCountdown() {
+	    Platform.runLater(() -> {
+	        countdownText.setVisible(true);
+	        countdownText.toFront();
+
+	        // Sequence: 3... 2... 1... GO!
+	        javafx.animation.Timeline timeline = new javafx.animation.Timeline(
+	            new javafx.animation.KeyFrame(javafx.util.Duration.seconds(0), e -> countdownText.setText("3")),
+	            new javafx.animation.KeyFrame(javafx.util.Duration.seconds(1), e -> countdownText.setText("2")),
+	            new javafx.animation.KeyFrame(javafx.util.Duration.seconds(2), e -> countdownText.setText("1")),
+	            new javafx.animation.KeyFrame(javafx.util.Duration.seconds(3), e -> {
+	                countdownText.setVisible(false);
+	                resetRound();
+	            })
+	        );
+	        timeline.play();
+	    });
+	}
+
+	private void resetRound() {
+	    // Deterministic bomb pass to survivors
+	    List<Player> survivors = new ArrayList<>(activePlayers.values());
+	    survivors.sort((p1, p2) -> p1.getNameTag().getText().compareTo(p2.getNameTag().getText()));
+	    
+	    // Reset bomb states
+	    activePlayers.values().forEach(p -> p.setBomb(false));
+	    survivors.get(0).setBomb(true);
+
+	    // Restart timer and game loop
+	    roundStartTime = System.nanoTime();
+	    gameLoop.start();
+	}
+	
 	public void addKey(KeyCode code) { activeKeys.add(code); }
 	public void removeKey(KeyCode code) { activeKeys.remove(code); }
 	public void setClient(GameClient client) { this.gameClient = client; }

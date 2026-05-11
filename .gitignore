@@ -2,3 +2,5 @@
 lib/
 run.sh
 .metadata/
+config.bat
+node_modules
