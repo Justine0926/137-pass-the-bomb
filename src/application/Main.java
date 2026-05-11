@@ -21,11 +21,18 @@ public class Main extends Application {
         window.setResizable(false);
 
         // background music
-        Media sound = new Media(getClass().getResource("/music/bg_music.wav").toExternalForm());
-        bgMusic = new MediaPlayer(sound);
-        bgMusic.setCycleCount(MediaPlayer.INDEFINITE); // loop forever
-        bgMusic.setVolume(0.5); // volume 0.0 to 1.0
-        bgMusic.play();
+        // TEMP: disabled until JavaFX media playback is restored
+        // (JavaFX 17 ships FFmpeg shims that need libavcodec.so.56-59;
+        //  Fedora 43 only has libavcodec.so.61, so MediaPlayer init throws).
+        // To re-enable: flip AUDIO_ENABLED to true.
+        final boolean AUDIO_ENABLED = false;
+        if (AUDIO_ENABLED) {
+            Media sound = new Media(getClass().getResource("/music/bg_music.mp3").toExternalForm());
+            bgMusic = new MediaPlayer(sound);
+            bgMusic.setCycleCount(MediaPlayer.INDEFINITE); // loop forever
+            bgMusic.setVolume(0.5); // volume 0.0 to 1.0
+            bgMusic.play();
+        }
         
         // show the main menu when the app first opens
         showMainMenu();
