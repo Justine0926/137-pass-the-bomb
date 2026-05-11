@@ -20,6 +20,7 @@ public class Player extends ImageView {
     
     private boolean hasBomb;
     private boolean isMoving = false;
+    private boolean isFrozen = false;
     private Direction facing = Direction.DOWN; 
     
     private final int xspeed = 5;
@@ -31,6 +32,8 @@ public class Player extends ImageView {
     private final Image[] bombIdleFrames = new Image[4];
     private final Image[][] walkFrames = new Image[4][3];
     private final Image[][] bombWalkFrames = new Image[4][3];
+    private final Image[] frozenFrames = new Image[4];
+    private final Image[] frozenBombFrames = new Image[4];
     
     private int currentWalkFrame = 0;
     private int animationTick = 0;
@@ -65,6 +68,14 @@ public class Player extends ImageView {
             
             // matches: /idle_bomb/bomb_idle_down.png
             bombIdleFrames[d] = safeLoad("/sprites/idle_bomb/bomb_idle_" + dir + ".png");
+            
+            // load Frozen Images
+            frozenFrames[d] = safeLoad("/sprites/freeze/frozen_" + 
+                (dir.equals("up") ? "back" : dir.equals("down") ? "front" : dir) + ".png");
+                
+            // load Frozen Bomb Images
+            frozenBombFrames[d] = safeLoad("/sprites/freeze/frozen_bomb_" + 
+                (dir.equals("up") ? "back" : dir.equals("down") ? "front" : dir) + ".png");
             
             // load Walking Images
             for (int f = 0; f < 3; f++) {
@@ -114,6 +125,11 @@ public class Player extends ImageView {
         boolean wasMoving = isMoving;
         Direction oldFacing = facing;
         isMoving = false; 
+
+        if (isFrozen) {
+            updateNameTagPosition();
+            return;
+        }
 
         if (activeKeys.contains(upKey) && getY() > 0) {
             setY(getY() - yspeed);
@@ -179,6 +195,15 @@ public class Player extends ImageView {
         updateAppearance();
     }
 
+    public boolean isFrozen() {
+        return isFrozen;
+    }
+
+    public void setFrozen(boolean isFrozen) {
+        this.isFrozen = isFrozen;
+        updateAppearance();
+    }
+
     private void updateAppearance() {
         int dirIndex = 0; 
         if (facing == Direction.LEFT) dirIndex = 1;
@@ -187,7 +212,15 @@ public class Player extends ImageView {
 
         Image imageToDraw = null;
 
-        if (hasBomb) {
+        if (isFrozen) {
+            if (hasBomb) {
+                imageToDraw = frozenBombFrames[dirIndex];
+                if (imageToDraw == null) imageToDraw = bombIdleFrames[dirIndex];
+            } else {
+                imageToDraw = frozenFrames[dirIndex];
+                if (imageToDraw == null) imageToDraw = idleFrames[dirIndex];
+            }
+        } else if (hasBomb) {
             imageToDraw = isMoving ? bombWalkFrames[dirIndex][currentWalkFrame] : bombIdleFrames[dirIndex];
             // fallback: if bomb walk frame is missing, just show the idle bomb frame
             if (imageToDraw == null) imageToDraw = bombIdleFrames[dirIndex]; 

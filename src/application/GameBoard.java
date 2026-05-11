@@ -45,7 +45,7 @@ public class GameBoard extends Pane {
 	private AnimationTimer gameLoop;
 	private ImageView deathGif;
 
-	private final long gameDurationNanos = 5_000_000_000L;
+	private final long gameDurationNanos = 90_000_000_000L;
 	private final long cooldownNanos = 1_000_000_000L;
 	private long bombLastPassedTime = 0;
 
@@ -65,6 +65,12 @@ public class GameBoard extends Pane {
 	//randomized bomb holder
 	boolean bombHolder = Math.random() < 0.5;
 
+	// powerup logic
+	private final Circle[] freezeTraps = new Circle[2];
+	private long p1FrozenUntil = 0;
+	private long p2FrozenUntil = 0;
+	private long lastPowerUpSpawnTime = 0;
+
 	// we now pass a Runnable so the board knows how to go back to the menu
 	public GameBoard(Runnable onMenuReturn) {
 		player1 = new Player(200, 300, 
@@ -74,7 +80,7 @@ public class GameBoard extends Pane {
 				KeyCode.UP, KeyCode.DOWN, KeyCode.LEFT, KeyCode.RIGHT, !bombHolder, "PLAYER 2");
 
 		// --- TIMER TEXT ---
-		timerText = new Text(650, 50, "TIME: 60");
+		timerText = new Text(650, 50, "TIME: 90");
 		timerText.setFont(Font.font("Monospaced", FontWeight.BOLD, 30));
 		timerText.setFill(Color.rgb(0xE8, 0xE0, 0xC0)); // MainMenu ACCENT color
 		timerText.setStroke(Color.rgb(0x08, 0x08, 0x08)); // MainMenu BLACK
@@ -199,8 +205,19 @@ public class GameBoard extends Pane {
 		// THE GAME WORLD 
 		// group everything that should be hidden by the fog into one container
 		gameWorld = new Group();
+		
 		gameWorld.getChildren().add(mapBackground); 
 		gameWorld.getChildren().addAll(obstacles);
+
+		// Setup powerup circles
+		for (int i = 0; i < 2; i++) {
+			freezeTraps[i] = new Circle(20, Color.CYAN);
+			freezeTraps[i].setStroke(Color.WHITE);
+			freezeTraps[i].setStrokeWidth(3);
+			spawnTrap(freezeTraps[i]);
+			gameWorld.getChildren().add(freezeTraps[i]);
+		}
+
 		gameWorld.getChildren().addAll(player1, player2);
 		gameWorld.getChildren().addAll(player1.getNameTag(), player2.getNameTag());
 		// inside the white pixels of the visionMask!
@@ -221,6 +238,24 @@ public class GameBoard extends Pane {
 		this.getChildren().addAll(fogBackground, maskedWorld, timerText, gameOverText, returnButton);
 
 		startGame();
+	}
+
+	private void spawnTrap(Circle trap) {
+		boolean safe = false;
+		while (!safe) {
+			double px = Math.random() * (1360 - 40) + 20;
+			double py = Math.random() * (760 - 40) + 20;
+			trap.setCenterX(px);
+			trap.setCenterY(py);
+			safe = true;
+			for (Rectangle wall : obstacles) {
+				if (trap.getBoundsInParent().intersects(wall.getBoundsInParent())) {
+					safe = false;
+					break;
+				}
+			}
+		}
+		trap.setVisible(true);
 	}
 
 	public void addKey(KeyCode code) { activeKeys.add(code); }
@@ -260,6 +295,16 @@ public class GameBoard extends Pane {
 				p2Vision.setCenterX(player2.getCenterX() - 30);
 				p2Vision.setCenterY(player2.getCenterY());
 
+				// unfreeze logic
+				if (p1FrozenUntil > 0 && now >= p1FrozenUntil) {
+					player1.setFrozen(false);
+					p1FrozenUntil = 0;
+				}
+				if (p2FrozenUntil > 0 && now >= p2FrozenUntil) {
+					player2.setFrozen(false);
+					p2FrozenUntil = 0;
+				}
+
 				checkCollision(now);
 			}
 		};
@@ -275,6 +320,32 @@ public class GameBoard extends Pane {
 				player1.setBomb(!p1HadBomb);
 				player2.setBomb(p1HadBomb);
 				bombLastPassedTime = now;
+			}
+		}
+
+		// PowerUp Spawning Logic
+		if (now - lastPowerUpSpawnTime > 5_000_000_000L && Math.random() < 0.05) {
+			for (Circle trap : freezeTraps) {
+				if (!trap.isVisible()) {
+					spawnTrap(trap);
+					lastPowerUpSpawnTime = now;
+					break;
+				}
+			}
+		}
+
+		// PowerUp Collision Logic (freezes the player who touches it)
+		for (Circle trap : freezeTraps) {
+			if (trap.isVisible()) {
+				if (player1.getBoundsInParent().intersects(trap.getBoundsInParent())) {
+					trap.setVisible(false);
+					p1FrozenUntil = now + 5_000_000_000L; // 5 seconds
+					player1.setFrozen(true);
+				} else if (player2.getBoundsInParent().intersects(trap.getBoundsInParent())) {
+					trap.setVisible(false);
+					p2FrozenUntil = now + 5_000_000_000L; // 5 seconds
+					player2.setFrozen(true);
+				}
 			}
 		}
 	}
