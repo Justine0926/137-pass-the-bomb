@@ -3,15 +3,20 @@ package application;
 import java.util.List;
 import java.util.Set;
 
+import javafx.animation.FadeTransition;
+import javafx.animation.ParallelTransition;
+import javafx.animation.ScaleTransition;
 import javafx.scene.effect.DropShadow;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.Node;
 import javafx.scene.input.KeyCode;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
+import javafx.util.Duration;
 
 public class Player extends ImageView {
     
@@ -23,9 +28,17 @@ public class Player extends ImageView {
     private boolean isFrozen = false;
     private Direction facing = Direction.DOWN; 
     
-    private final int xspeed = 5;
-    private final int yspeed = 4;
+    private static final int BASE_XSPEED = 5;
+    private static final int BASE_YSPEED = 4;
+    private int xspeed = BASE_XSPEED;
+    private int yspeed = BASE_YSPEED;
     private final double size = 120; 
+    
+    // power-up state
+    private boolean shielded = false;
+    private final ImageView shieldAura;
+    private final double shieldAuraSize = 150; // on-screen diameter of the pixel-art bubble
+    private final DropShadow speedGlow;
     
     // arrays for images (0=Down, 1=Left, 2=Right, 3=Up)
     private final Image[] idleFrames = new Image[4];
@@ -45,6 +58,22 @@ public class Player extends ImageView {
 
     public Player(double startX, double startY, 
                   KeyCode up, KeyCode down, KeyCode left, KeyCode right, boolean startsWithBomb, String playerName) {
+        
+        // shield aura: pixel-art cyan bubble drawn around the player when shielded
+        Image auraImg = safeLoad("/sprites/powerups/shield_aura.png");
+        shieldAura = new ImageView(auraImg);
+        shieldAura.setFitWidth(shieldAuraSize);
+        shieldAura.setFitHeight(shieldAuraSize);
+        shieldAura.setPreserveRatio(true);
+        shieldAura.setSmooth(false);          // keep crisp pixels
+        shieldAura.setMouseTransparent(true);
+        shieldAura.setVisible(false);
+        
+        // speed glow effect: yellow/orange drop shadow applied to the sprite while boosted
+        speedGlow = new DropShadow();
+        speedGlow.setColor(Color.color(1.0, 0.85, 0.2, 0.9));
+        speedGlow.setRadius(25);
+        speedGlow.setSpread(0.4);
         
     	//name field
     	nameTag = new Text(playerName);
@@ -104,6 +133,7 @@ public class Player extends ImageView {
         
         updateAppearance();
         updateNameTagPosition();
+        updateShieldAuraPosition();
     }
 
     // --- SAFETY NET METHOD ---
@@ -184,6 +214,7 @@ public class Player extends ImageView {
             updateAppearance();
         }
         updateNameTagPosition();
+        updateShieldAuraPosition();
     }
 
     public boolean hasBomb() {
@@ -232,6 +263,72 @@ public class Player extends ImageView {
         
         this.setImage(imageToDraw);
     }
+    private void updateShieldAuraPosition() {
+        // center the aura on the rendered sprite bounds (preserveRatio can
+        // shrink actual on-screen width/height below the nominal `size`).
+        javafx.geometry.Bounds b = this.getBoundsInParent();
+        double cx = b.getMinX() + b.getWidth()  / 2.0;
+        double cy = b.getMinY() + b.getHeight() / 2.0;
+        shieldAura.setX(cx - shieldAuraSize / 2.0);
+        shieldAura.setY(cy - shieldAuraSize / 2.0);
+    }
+    
+    // --- Power-Up Methods ---
+    
+    public void applySpeedBoost(double multiplier) {
+        xspeed = (int) Math.round(BASE_XSPEED * multiplier);
+        yspeed = (int) Math.round(BASE_YSPEED * multiplier);
+        setEffect(speedGlow);
+    }
+    
+    public void resetSpeed() {
+        xspeed = BASE_XSPEED;
+        yspeed = BASE_YSPEED;
+        if (getEffect() == speedGlow) {
+            setEffect(null);
+        }
+    }
+    
+    public boolean isShielded() {
+        return shielded;
+    }
+    
+    public void setShielded(boolean v) {
+        shielded = v;
+        // reset any leftover transform/opacity from a previous break animation
+        shieldAura.setScaleX(1.0);
+        shieldAura.setScaleY(1.0);
+        shieldAura.setOpacity(1.0);
+        shieldAura.setVisible(v);
+    }
+    
+    public Node getShieldAura() {
+        return shieldAura;
+    }
+    
+    // plays a quick pop+fade animation, then disables shield
+    public void breakShield() {
+        if (!shielded) return;
+        shielded = false; // logically broken immediately so no further blocks happen
+        
+        ScaleTransition pop = new ScaleTransition(Duration.millis(180), shieldAura);
+        pop.setFromX(1.0); pop.setFromY(1.0);
+        pop.setToX(1.6);   pop.setToY(1.6);
+        
+        FadeTransition fade = new FadeTransition(Duration.millis(180), shieldAura);
+        fade.setFromValue(1.0);
+        fade.setToValue(0.0);
+        
+        ParallelTransition pt = new ParallelTransition(pop, fade);
+        pt.setOnFinished(e -> {
+            shieldAura.setVisible(false);
+            shieldAura.setScaleX(1.0);
+            shieldAura.setScaleY(1.0);
+            shieldAura.setOpacity(1.0);
+        });
+        pt.play();
+    }
+    
     private void updateNameTagPosition() {
         //actual width of the text
         double textWidth = nameTag.getLayoutBounds().getWidth();
