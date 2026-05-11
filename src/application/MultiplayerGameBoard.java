@@ -49,7 +49,7 @@ public class MultiplayerGameBoard extends Pane {
 	private AnimationTimer gameLoop;
 	private ImageView deathGif;
 
-	private final long roundDurationNanos = 30_000_000_000L; 
+	private final long roundDurationNanos = 5_000_000_000L; 
 	private final long cooldownNanos = 1_000_000_000L;
 	private long bombLastPassedTime = 0;
 	private long roundStartTime = -1; 
@@ -57,10 +57,6 @@ public class MultiplayerGameBoard extends Pane {
 	private AudioClip fuseSound;
 	private AudioClip explosionSound;
 	private boolean fusePlayed = false;
-	private static Image deathGifLeft;
-	private static Image deathGifRight;
-	private static Image deathGifUp;
-	private static Image deathGifDown;
 
 	private final List<Rectangle> obstacles = new ArrayList<>();
 	private boolean isHost;
@@ -113,20 +109,35 @@ public class MultiplayerGameBoard extends Pane {
 		gameWorld.getChildren().add(mapBackground); 
 
 		// --- FOG TEXTURE SETUP ---
-//		Image fogImg = new Image(getClass().getResource("/screens/cloud.png").toExternalForm());
-//		ImagePattern fogTexture = new ImagePattern(fogImg);
+		//		Image fogImg = new Image(getClass().getResource("/screens/cloud.png").toExternalForm());
+		//		ImagePattern fogTexture = new ImagePattern(fogImg);
 
 		// --- SPAWN PLAYERS ---
-		int spawnOffset = 100;
+		double[] baseX = { 50, 590, 590, 50 };
+		double[] baseY = { 50, 290, 50, 290 };
 		for (int i = 0; i < allPlayers.size(); i++) {
 			String pName = allPlayers.get(i);
 			boolean startsWithBomb = (i == 0); 
+			int cornerIndex = i % 4;
 
-			Player p = new Player(spawnOffset, 300, 
+			// 2. Find how many "extra" groups of 4 we have.
+			// Players 0-3 = Cycle 0 (No offset)
+			// Players 4-7 = Cycle 1 (1 offset shift)
+			// Players 8-11 = Cycle 2 (2 offset shifts)
+			int cycle = i / 4;
+
+			// 3. Calculate the X offset (70 pixels per extra cycle).
+			// If they are on the Left side (baseX is 50), ADD the offset to push them right.
+			// If they are on the Right side (baseX is 590), SUBTRACT the offset to push them left.
+			double offsetX = (baseX[cornerIndex] < 350) ? (cycle * 70) : -(cycle * 70);
+
+			double startX = baseX[cornerIndex] + offsetX;
+			double startY = baseY[cornerIndex]; // Y stays the same so they form a horizontal line
+
+			Player p = new Player(startX, startY, 
 					KeyCode.UP, KeyCode.DOWN, KeyCode.LEFT, KeyCode.RIGHT, startsWithBomb, pName);
 
 			activePlayers.put(pName, p);
-			spawnOffset += 200; 
 
 			if (pName.equals(myName)) {
 				this.localPlayer = p;
@@ -161,7 +172,8 @@ public class MultiplayerGameBoard extends Pane {
 				fogFade = new Circle(radius);
 				RadialGradient fadeGradient = new RadialGradient(
 						0, 0, 0.5, 0.5, 0.5, true, CycleMethod.NO_CYCLE,
-						new Stop(0, Color.TRANSPARENT), new Stop(1, Color.rgb(0, 0, 0, 0.9)) 
+						new Stop(0, Color.TRANSPARENT), 
+						new Stop(1, Color.BLACK) // Changed to pure, solid black
 						);
 				fogFade.setFill(fadeGradient);
 
@@ -219,14 +231,6 @@ public class MultiplayerGameBoard extends Pane {
 		fuseSound = new AudioClip(getClass().getResource("/music/fuse_music.wav").toExternalForm());
 		explosionSound = new AudioClip(getClass().getResource("/music/explosion_music.wav").toExternalForm());
 		explosionSound.setVolume(1.0);
-		// We load these ONCE here, so the GPU doesn't crash trying to load them during the explosion!
-		if (deathGifLeft == null) {
-			deathGifLeft = new Image(getClass().getResource("/sprites/die/with_bomb_left.gif").toExternalForm());
-			deathGifRight = new Image(getClass().getResource("/sprites/die/with_bomb_right.gif").toExternalForm());
-			deathGifUp = new Image(getClass().getResource("/sprites/die/with_bomb_back.gif").toExternalForm());
-			deathGifDown = new Image(getClass().getResource("/sprites/die/with_bomb_front.gif").toExternalForm());
-		}
-
 		// --- STACK THE LAYERS ---
 		// 1. GameWorld (Map + Obstacles + Players)
 		// 2. FogOverlay (The Cloud Stroke + Fade)
@@ -342,31 +346,35 @@ public class MultiplayerGameBoard extends Pane {
 		if (loser != null) {
 			final Player finalLoser = loser;
 			Platform.runLater(() -> {
-				// Use the pre-loaded GIFs!
-				Image targetGif = deathGifDown; // Default to front
+				// 1. Determine the correct path based on facing direction
+				String gifPath = "/sprites/die/with_bomb_front.gif";
 
 				switch (finalLoser.getFacing()) {
-				case LEFT: targetGif = deathGifLeft; break;
-				case RIGHT: targetGif = deathGifRight; break;
-				case UP: targetGif = deathGifUp; break;
-				case DOWN: targetGif = deathGifDown; break;
+				case LEFT: gifPath = "/sprites/die/with_bomb_left.gif"; break;
+				case RIGHT: gifPath = "/sprites/die/with_bomb_right.gif"; break;
+				case UP: gifPath = "/sprites/die/with_bomb_back.gif"; break;
+				case DOWN: gifPath = "/sprites/die/with_bomb_front.gif"; break;
 				}
 
-				// Assign the pre-loaded image to the ImageView
-				deathGif = new ImageView(targetGif);
+				// 2. Load using the URL (to keep animation data intact)
+				Image freshGif = new Image(getClass().getResource(gifPath).toExternalForm());
+				deathGif = new ImageView(freshGif);
 
-				deathGif.setFitWidth(60); deathGif.setFitHeight(60);
-				deathGif.setX(finalLoser.getX()); deathGif.setY(finalLoser.getY());
+				// --- CRITICAL FIX ---
+				// Do NOT use setFitWidth() or setFitHeight() here! 
+				// Let the native 60x60 file size dictate the dimensions so JavaFX doesn't freeze the timeline.
+				deathGif.setX(finalLoser.getX()); 
+				deathGif.setY(finalLoser.getY());
 
 				finalLoser.setVisible(false);
 				finalLoser.getNameTag().setVisible(false);
 
-				// Turn off the fog hole if the local player dies!
+				// Turn off the fog hole if the local player dies
 				if (finalLoser == localPlayer && fogOverlay != null) {
 					fogOverlay.setVisible(false); 
 				}
 
-				getChildren().add(deathGif); 
+				getChildren().add(deathGif);
 			});
 
 			activePlayers.remove(loserName);
