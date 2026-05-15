@@ -24,13 +24,15 @@ public class HowToPlayScreen extends StackPane {
         setBackground(new Background(new BackgroundFill(BG_COLOR, CornerRadii.EMPTY, Insets.EMPTY)));
 
         VBox content = new VBox(5);
-        content.setPadding(new Insets(20, 80, 20, 80)); // Indent content a bit
+        // SCALED: Reduced side padding from 80 to 40 so text has more room to breathe on a small screen
+        content.setPadding(new Insets(10, 40, 10, 40)); 
         content.setAlignment(Pos.TOP_LEFT);
         content.setBackground(Background.EMPTY);
 
         // Title
         Label title = new Label("How to Play Pass the Bomb");
-        title.setFont(Font.font(FONT_FAMILY, FontWeight.BOLD, 48));
+        // SCALED: Reduced title font from 48 to 32
+        title.setFont(Font.font(FONT_FAMILY, FontWeight.BOLD, 32));
         title.setTextFill(TEXT_COLOR);
         
         // --- Sections ---
@@ -69,15 +71,18 @@ public class HowToPlayScreen extends StackPane {
         addBullet(content, "Stay away from players holding the bomb near the end of the timer.");
 
         Button backBtn = new Button("BACK TO MAIN MENU");
-        backBtn.setFont(Font.font(FONT_FAMILY, FontWeight.BOLD, 24));
+        // SCALED: Reduced button font from 24 to 16
+        backBtn.setFont(Font.font(FONT_FAMILY, FontWeight.BOLD, 16));
         backBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #e8e0c0; -fx-border-color: #e8e0c0; -fx-border-width: 2px;");
         backBtn.setOnMouseEntered(e -> backBtn.setStyle("-fx-background-color: #e8e0c0; -fx-text-fill: #1b1b3a;"));
         backBtn.setOnMouseExited(e -> backBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #e8e0c0; -fx-border-color: #e8e0c0; -fx-border-width: 2px;"));
         backBtn.setOnAction(e -> onMenuReturn.run());
 
-        VBox layout = new VBox(30);
+        // SCALED: Reduced VBox spacing from 30 to 15
+        VBox layout = new VBox(15);
         layout.setAlignment(Pos.TOP_CENTER);
-        layout.setPadding(new Insets(40));
+        // SCALED: Reduced overall padding from 40 to 20
+        layout.setPadding(new Insets(20));
         layout.setBackground(Background.EMPTY);
         
         layout.getChildren().addAll(title, content, backBtn);
@@ -92,23 +97,28 @@ public class HowToPlayScreen extends StackPane {
 
     private void addHeading(VBox container, String text) {
         Label heading = new Label(text);
-        heading.setFont(Font.font(FONT_FAMILY, FontWeight.BOLD, 32));
+        // SCALED: Reduced heading font from 32 to 22
+        heading.setFont(Font.font(FONT_FAMILY, FontWeight.BOLD, 22));
         heading.setTextFill(TEXT_COLOR);
-        VBox.setMargin(heading, new Insets(25, 0, 10, 0));
+        // SCALED: Reduced margins
+        VBox.setMargin(heading, new Insets(15, 0, 5, 0));
         container.getChildren().add(heading);
     }
     
     private void addSubHeading(VBox container, String text) {
         Label heading = new Label(text);
-        heading.setFont(Font.font(FONT_FAMILY, FontWeight.BOLD, 24));
+        // SCALED: Reduced subheading font from 24 to 18
+        heading.setFont(Font.font(FONT_FAMILY, FontWeight.BOLD, 18));
         heading.setTextFill(TEXT_COLOR);
-        VBox.setMargin(heading, new Insets(15, 0, 5, 0));
+        // SCALED: Reduced margins
+        VBox.setMargin(heading, new Insets(10, 0, 5, 0));
         container.getChildren().add(heading);
     }
 
     private void addText(VBox container, String text) {
         Label label = new Label(text);
-        label.setFont(Font.font(FONT_FAMILY, FontWeight.NORMAL, 20));
+        // SCALED: Reduced text font from 20 to 14
+        label.setFont(Font.font(FONT_FAMILY, FontWeight.NORMAL, 14));
         label.setTextFill(TEXT_COLOR);
         label.setWrapText(true);
         container.getChildren().add(label);
@@ -116,10 +126,12 @@ public class HowToPlayScreen extends StackPane {
 
     private void addBullet(VBox container, String text) {
         Label label = new Label("• " + text);
-        label.setFont(Font.font(FONT_FAMILY, FontWeight.NORMAL, 20));
+        // SCALED: Reduced bullet font from 20 to 14
+        label.setFont(Font.font(FONT_FAMILY, FontWeight.NORMAL, 14));
         label.setTextFill(TEXT_COLOR);
         label.setWrapText(true);
-        VBox.setMargin(label, new Insets(0, 0, 8, 20)); // Indent bullets
+        // SCALED: Adjusted bullet indent margins
+        VBox.setMargin(label, new Insets(0, 0, 4, 15)); 
         container.getChildren().add(label);
     }
 }

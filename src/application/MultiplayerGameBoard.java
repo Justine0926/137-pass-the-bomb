@@ -52,10 +52,12 @@ public class MultiplayerGameBoard extends Pane {
 	private AnimationTimer gameLoop;
 	//	private ImageView deathGif;
 
-	private final long roundDurationNanos = 5_000_000_000L; 
+	//	private final long roundDurationNanos = 5_000_000_000L; 
+	private final long roundDurationNanos;
 	private final long cooldownNanos = 1_000_000_000L;
 	private long bombLastPassedTime = 0;
 	private long roundStartTime = -1; 
+	private final boolean powerUpsEnabled;
 
 	private AudioClip fuseSound;
 	private AudioClip explosionSound;
@@ -78,13 +80,15 @@ public class MultiplayerGameBoard extends Pane {
 
 
 
-	public MultiplayerGameBoard(Runnable onMenuReturn, GameClient client, String myName, List<String> allPlayers, boolean isHost) {
+	public MultiplayerGameBoard(Runnable onMenuReturn, GameClient client, String myName, List<String> allPlayers, boolean isHost, int hostDuration, boolean hostPowerUps) {
 		this.gameClient = client;
 		this.myName = myName;
 		this.isHost = isHost;
+		this.roundDurationNanos = hostDuration * 1_000_000_000L;
+		this.powerUpsEnabled = hostPowerUps;
 
 		// --- TIMER & UI TEXT (Unchanged) ---
-		timerText = new Text(300, 50, "TIME: 60");
+		timerText = new Text(300, 50, "TIME: " + hostDuration);
 		timerText.setFont(Font.font("Monospaced", FontWeight.BOLD, 30));
 		timerText.setFill(Color.rgb(0xE8, 0xE0, 0xC0)); 
 		timerText.setStroke(Color.rgb(0x08, 0x08, 0x08)); 
@@ -123,13 +127,13 @@ public class MultiplayerGameBoard extends Pane {
 		returnButton.setOnMouseEntered(e -> returnButton.setStyle("-fx-background-color: transparent; -fx-text-fill: rgb(232, 224, 192); -fx-cursor: hand;"));
 		returnButton.setOnMouseExited(e -> returnButton.setStyle("-fx-background-color: transparent; -fx-text-fill: rgb(144, 140, 128); -fx-cursor: hand;"));
 		returnButton.setOnAction(e -> {
-		    // shut down the client socket so it stops listening
-		    if (gameClient != null) {
-		        gameClient.disconnect(); // Make sure your GameClient has a stop() method that calls socket.close()
-		    }
-		    
-		    //return to the main menu
-		    onMenuReturn.run(); 
+			// shut down the client socket so it stops listening
+			if (gameClient != null) {
+				gameClient.disconnect(); // Make sure your GameClient has a stop() method that calls socket.close()
+			}
+
+			//return to the main menu
+			onMenuReturn.run(); 
 		});
 
 		// --- ARENA ---
@@ -262,9 +266,21 @@ public class MultiplayerGameBoard extends Pane {
 			gameWorld.getChildren().add(freezeTraps[i]);
 		}
 
-		fuseSound = new AudioClip(getClass().getResource("/music/fuse_music.mp3").toExternalForm());
-		explosionSound = new AudioClip(getClass().getResource("/music/explosion_music.mp3").toExternalForm());
-		explosionSound.setVolume(1.0);
+		try {
+			fuseSound = new AudioClip(getClass().getResource("/music/fuse_music.mp3").toExternalForm());
+			explosionSound = new AudioClip(getClass().getResource("/music/explosion_music.mp3").toExternalForm());
+
+			// Check the player's LOCAL setting. Do not trust the network for this!
+			if (!GameSettings.sfxEnabled) {
+				fuseSound.setVolume(0);
+				explosionSound.setVolume(0);
+			} else {
+				fuseSound.setVolume(1.0);
+				explosionSound.setVolume(1.0);
+			}
+		} catch (Exception e) {
+			System.err.println("Warning: Could not load multiplayer sound effects.");
+		}
 		// --- STACK THE LAYERS ---
 		// 1. GameWorld (Map + Obstacles + Players)
 		// 2. FogOverlay (The Cloud Stroke + Fade)
@@ -414,8 +430,8 @@ public class MultiplayerGameBoard extends Pane {
 			}
 		}
 
-		// 3. HOST SPAWNS POWERUPS
-		if (now - lastPowerUpSpawnTime > spawnIntervalNanos) {
+		// 3. HOST SPAWNS POWERUPS (ONLY IF ALLOWED)
+		if (powerUpsEnabled && now - lastPowerUpSpawnTime > spawnIntervalNanos) {
 
 			// Try to spawn a PowerUp if we aren't at the max limit
 			if (networkPowerUps.size() < maxActivePowerUps) {
@@ -430,15 +446,13 @@ public class MultiplayerGameBoard extends Pane {
 			lastPowerUpSpawnTime = now;
 		}
 
-		// --- NEW: HOST SPAWNS TRAPS ---
-		if (now - lastTrapSpawnTime > trapSpawnIntervalNanos) { 
+		// --- NEW: HOST SPAWNS TRAPS (ONLY IF ALLOWED) ---
+		if (powerUpsEnabled && now - lastTrapSpawnTime > trapSpawnIntervalNanos) { 
 			for (int i = 0; i < freezeTraps.length; i++) {
 				if (!freezeTraps[i].isVisible()) {
 					double tx = Math.random() * (660 - 40) + 20;
 					double ty = Math.random() * (360 - 40) + 20;
 					gameClient.send("SPAWN_TRAP " + i + " " + tx + " " + ty);
-
-					// Break so we only spawn ONE trap every 5 seconds, not both at the same time!
 					break; 
 				}
 			}
@@ -485,7 +499,7 @@ public class MultiplayerGameBoard extends Pane {
 		// 1. STOP THE LOOP IMMEDIATELY! 
 		// This freezes movement and prevents the Host from spamming "ELIMINATE"
 		gameLoop.stop(); 
-		
+
 		explosionSound.play();
 		fuseSound.stop();
 		fusePlayed = false;
@@ -739,7 +753,7 @@ public class MultiplayerGameBoard extends Pane {
 		}
 		else if (msg.startsWith("INTERMISSION")) {
 			String countNumber = msg.split(" ")[1];
-			
+
 			Platform.runLater(() -> {
 				countdownText.setText(countNumber);
 				countdownText.setVisible(true);
@@ -765,7 +779,7 @@ public class MultiplayerGameBoard extends Pane {
 					new javafx.animation.KeyFrame(javafx.util.Duration.seconds(1), e -> gameClient.send("INTERMISSION 2")),
 					new javafx.animation.KeyFrame(javafx.util.Duration.seconds(2), e -> gameClient.send("INTERMISSION 1")),
 					new javafx.animation.KeyFrame(javafx.util.Duration.seconds(3), e -> gameClient.send("RESTART_ROUND"))
-			);
+					);
 			timeline.play();
 		});
 	}
@@ -781,7 +795,7 @@ public class MultiplayerGameBoard extends Pane {
 
 		// Restart timer and game loop
 		roundStartTime = System.nanoTime();
-		
+
 		// 3. RESET HOST ITEM TIMERS
 		// Prevents traps and powerups from instantly spawning because 3 seconds passed in real-life
 		if (isHost) {
@@ -789,7 +803,7 @@ public class MultiplayerGameBoard extends Pane {
 			lastTrapSpawnTime = roundStartTime;
 			bombLastPassedTime = roundStartTime;
 		}
-		
+
 		gameLoop.start();
 	}
 

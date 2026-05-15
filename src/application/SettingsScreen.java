@@ -33,26 +33,31 @@ public class SettingsScreen extends StackPane {
         tempSfx = GameSettings.sfxEnabled;
         tempMusic = GameSettings.musicEnabled;
 
-        VBox layout = new VBox(40);
+        // SCALED: Reduced main spacing from 40 to 20
+        VBox layout = new VBox(20);
         layout.setAlignment(Pos.CENTER);
         
         Label title = new Label("SETTINGS");
-        title.setFont(Font.font(FONT_FAMILY, FontWeight.BOLD, 48));
+        // SCALED: Reduced title font from 48 to 36
+        title.setFont(Font.font(FONT_FAMILY, FontWeight.BOLD, 36));
         title.setTextFill(TEXT_COLOR);
         
         GridPane grid = new GridPane();
         grid.setAlignment(Pos.CENTER);
-        grid.setHgap(30);
-        grid.setVgap(20);
+        // SCALED: Reduced grid gaps
+        grid.setHgap(20);
+        grid.setVgap(10);
 
         // 1. Round Duration
         Label durationLabel = new Label("Round Duration (sec):");
-        durationLabel.setFont(Font.font(FONT_FAMILY, FontWeight.BOLD, 24));
+        // SCALED: Reduced label font from 24 to 16
+        durationLabel.setFont(Font.font(FONT_FAMILY, FontWeight.BOLD, 16));
         durationLabel.setTextFill(TEXT_COLOR);
         
         TextField durationInput = new TextField(String.valueOf(GameSettings.roundDurationSeconds));
-        durationInput.setFont(Font.font(FONT_FAMILY, FontWeight.BOLD, 24));
-        durationInput.setStyle("-fx-background-color: transparent; -fx-text-fill: #e8e0c0; -fx-border-color: #e8e0c0; -fx-border-width: 0 0 2px 0; -fx-pref-width: 80px; -fx-alignment: center;");
+        // SCALED: Reduced input font from 24 to 16 and width from 80px to 60px
+        durationInput.setFont(Font.font(FONT_FAMILY, FontWeight.BOLD, 16));
+        durationInput.setStyle("-fx-background-color: transparent; -fx-text-fill: #e8e0c0; -fx-border-color: #e8e0c0; -fx-border-width: 0 0 2px 0; -fx-pref-width: 60px; -fx-alignment: center;");
         
         // Restrict to numbers only
         durationInput.textProperty().addListener((observable, oldValue, newValue) -> {
@@ -63,19 +68,19 @@ public class SettingsScreen extends StackPane {
 
         // 2. Power-ups Toggle
         Label powerUpsLabel = new Label("Power-ups:");
-        powerUpsLabel.setFont(Font.font(FONT_FAMILY, FontWeight.BOLD, 24));
+        powerUpsLabel.setFont(Font.font(FONT_FAMILY, FontWeight.BOLD, 16));
         powerUpsLabel.setTextFill(TEXT_COLOR);
         Button powerUpsBtn = createToggleButton(tempPowerUps, v -> tempPowerUps = v);
 
         // 3. SFX Toggle
         Label sfxLabel = new Label("Sound Effects:");
-        sfxLabel.setFont(Font.font(FONT_FAMILY, FontWeight.BOLD, 24));
+        sfxLabel.setFont(Font.font(FONT_FAMILY, FontWeight.BOLD, 16));
         sfxLabel.setTextFill(TEXT_COLOR);
         Button sfxBtn = createToggleButton(tempSfx, v -> tempSfx = v);
 
         // 4. Music Toggle
         Label musicLabel = new Label("Music:");
-        musicLabel.setFont(Font.font(FONT_FAMILY, FontWeight.BOLD, 24));
+        musicLabel.setFont(Font.font(FONT_FAMILY, FontWeight.BOLD, 16));
         musicLabel.setTextFill(TEXT_COLOR);
         Button musicBtn = createToggleButton(tempMusic, v -> tempMusic = v);
 
@@ -118,9 +123,10 @@ public class SettingsScreen extends StackPane {
         styleButton(cancelBtn);
         cancelBtn.setOnAction(e -> onMenuReturn.run());
 
-        HBox btnBox = new HBox(30, saveBtn, cancelBtn);
+        // SCALED: Reduced HBox spacing to 20 and top padding to 15
+        HBox btnBox = new HBox(20, saveBtn, cancelBtn);
         btnBox.setAlignment(Pos.CENTER);
-        btnBox.setPadding(new Insets(30, 0, 0, 0));
+        btnBox.setPadding(new Insets(15, 0, 0, 0));
 
         layout.getChildren().addAll(title, grid, btnBox);
         getChildren().add(layout);
@@ -129,15 +135,17 @@ public class SettingsScreen extends StackPane {
     // Helper to create an ON/OFF toggle button
     private Button createToggleButton(boolean initialState, java.util.function.Consumer<Boolean> onToggle) {
         Button btn = new Button(initialState ? "ON" : "OFF");
-        btn.setFont(Font.font(FONT_FAMILY, FontWeight.BOLD, 24));
+        // SCALED: Reduced font from 24 to 16
+        btn.setFont(Font.font(FONT_FAMILY, FontWeight.BOLD, 16));
         // Use an array to hold mutable state inside lambda
         final boolean[] state = { initialState };
         
         Runnable updateStyle = () -> {
+            // SCALED: Reduced button width from 100px to 70px
             if (state[0]) {
-                btn.setStyle("-fx-background-color: #e8e0c0; -fx-text-fill: #1b1b3a; -fx-border-color: #e8e0c0; -fx-border-width: 2px; -fx-pref-width: 100px;");
+                btn.setStyle("-fx-background-color: #e8e0c0; -fx-text-fill: #1b1b3a; -fx-border-color: #e8e0c0; -fx-border-width: 2px; -fx-pref-width: 70px;");
             } else {
-                btn.setStyle("-fx-background-color: transparent; -fx-text-fill: #e8e0c0; -fx-border-color: #e8e0c0; -fx-border-width: 2px; -fx-pref-width: 100px;");
+                btn.setStyle("-fx-background-color: transparent; -fx-text-fill: #e8e0c0; -fx-border-color: #e8e0c0; -fx-border-width: 2px; -fx-pref-width: 70px;");
             }
             btn.setText(state[0] ? "ON" : "OFF");
         };
@@ -153,9 +161,10 @@ public class SettingsScreen extends StackPane {
     }
 
     private void styleButton(Button btn) {
-        btn.setFont(Font.font(FONT_FAMILY, FontWeight.BOLD, 24));
-        btn.setStyle("-fx-background-color: transparent; -fx-text-fill: #e8e0c0; -fx-border-color: #e8e0c0; -fx-border-width: 2px; -fx-pref-width: 150px;");
-        btn.setOnMouseEntered(e -> btn.setStyle("-fx-background-color: #e8e0c0; -fx-text-fill: #1b1b3a; -fx-pref-width: 150px;"));
-        btn.setOnMouseExited(e -> btn.setStyle("-fx-background-color: transparent; -fx-text-fill: #e8e0c0; -fx-border-color: #e8e0c0; -fx-border-width: 2px; -fx-pref-width: 150px;"));
+        // SCALED: Reduced font from 24 to 16 and width from 150px to 120px
+        btn.setFont(Font.font(FONT_FAMILY, FontWeight.BOLD, 16));
+        btn.setStyle("-fx-background-color: transparent; -fx-text-fill: #e8e0c0; -fx-border-color: #e8e0c0; -fx-border-width: 2px; -fx-pref-width: 120px;");
+        btn.setOnMouseEntered(e -> btn.setStyle("-fx-background-color: #e8e0c0; -fx-text-fill: #1b1b3a; -fx-pref-width: 120px;"));
+        btn.setOnMouseExited(e -> btn.setStyle("-fx-background-color: transparent; -fx-text-fill: #e8e0c0; -fx-border-color: #e8e0c0; -fx-border-width: 2px; -fx-pref-width: 120px;"));
     }
 }

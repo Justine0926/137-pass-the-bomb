@@ -26,7 +26,7 @@ public class Main extends Application {
 
 	private GameServer activeServer;
 	private GameClient activeClient;
-	
+
 	private List<String> tempPlayerList;
 
 	@Override
@@ -36,7 +36,7 @@ public class Main extends Application {
 		window.setResizable(false);
 
 		// background music (Merged: updated to .wav from the settings branch)
-		Media sound = new Media(getClass().getResource("/music/bg_music.wav").toExternalForm());
+		Media sound = new Media(getClass().getResource("/music/bg_music.mp3").toExternalForm());
 		bgMusic = new MediaPlayer(sound);
 		bgMusic.setCycleCount(MediaPlayer.INDEFINITE); // loop forever
 		bgMusic.setVolume(0.5); // volume 0.0 to 1.0
@@ -90,13 +90,13 @@ public class Main extends Application {
 				// JOIN BUTTON
 				(String targetIp, String joinerName) -> { 
 					System.out.println("Connecting to IP: " + targetIp + " as " + joinerName);
-					
+
 					// FIX: Turn spaces into underscores!
 					String cleanName = joinerName.trim().replaceAll(" ", "_");
 					String safeJoinerName = cleanName + "#" + (int)(Math.random() * 9000 + 1000);
 					joinLobby(targetIp, false, safeJoinerName); 
 				}
-		);
+				);
 
 		window.setScene(new Scene(mpMenu, WIDTH, HEIGHT));
 	}
@@ -123,11 +123,11 @@ public class Main extends Application {
 		chatBox.setStyle("-fx-background-color: #000; -fx-padding: 10; -fx-border-color: #444; -fx-border-radius: 5;");
 		chatBox.setPrefHeight(180);
 		chatBox.setMaxWidth(450);
-		
+
 		Text chatArea = new Text("--- LOBBY CHAT ---\n");
 		chatArea.setFill(Color.LIGHTGREEN);
 		chatArea.setFont(Font.font("Monospaced", 12));
-		
+
 		// Wrap the text in a ScrollPane just in case you chat a lot!
 		javafx.scene.control.ScrollPane chatScroll = new javafx.scene.control.ScrollPane(chatArea);
 		chatScroll.setStyle("-fx-background: #000; -fx-border-color: transparent;");
@@ -149,8 +149,10 @@ public class Main extends Application {
 		javafx.scene.control.Button startBtn = new javafx.scene.control.Button("START GAME");
 		startBtn.setStyle("-fx-background-color: #2e7d32; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 16px;");
 		startBtn.setVisible(isHost);
-		startBtn.setDisable(true); // Locked until lobby is full
-		startBtn.setOnAction(e -> activeClient.send("FORCE_START"));
+		startBtn.setDisable(true); 
+
+		// include host settings in the packet
+		startBtn.setOnAction(e -> activeClient.send("FORCE_START " + GameSettings.roundDurationSeconds + " " + GameSettings.powerUpsEnabled));
 
 		// 5. GO BACK / CANCEL BUTTON
 		javafx.scene.control.Button backBtn = new javafx.scene.control.Button("CANCEL & GO BACK");
@@ -171,7 +173,7 @@ public class Main extends Application {
 
 		// --- THE NETWORK CLIENT LOGIC ---
 		activeClient = new GameClient(ipAddress, myName, msg -> {
-			
+
 			// Handle Chat
 			if (msg.startsWith("LOBBY_CHAT")) {
 				String chatLine = msg.substring(11);
@@ -180,33 +182,39 @@ public class Main extends Application {
 					chatScroll.setVvalue(1.0); // Auto-scroll to bottom
 				});
 			}
-			
+
 			// Handle Dynamic Player Joins
 			else if (msg.startsWith("LOBBY_UPDATE")) {
 				String[] parts = msg.split(" ", 3);
 				String maxExpected = parts[1];
 				String roster = parts[2].trim();
 				List<String> allPlayers = Arrays.asList(roster.split(","));
-				
+
 				Platform.runLater(() -> {
 					counterText.setText("PLAYERS: " + allPlayers.size() + " / " + maxExpected);
 					this.tempPlayerList = allPlayers; 
-					
+
 					// Unlock the Start button for the Host if the room is full!
 					if (isHost && allPlayers.size() == Integer.parseInt(maxExpected)) {
 						startBtn.setDisable(false);
 					}
 				});
 			}
-			
-			// Handle the Host clicking "Start Game"
-			else if (msg.equals("FORCE_START")) {
+
+			// Handle the Host clicking "Start Game"			// Handle the Host clicking "Start Game"
+			else if (msg.startsWith("FORCE_START")) {
+				// --- Extract BOTH of the Host's custom settings! ---
+				String[] tokens = msg.split(" ");
+				int hostDuration = Integer.parseInt(tokens[1]);
+				boolean hostPowerUps = Boolean.parseBoolean(tokens[2]);
+
 				Platform.runLater(() -> {
+					// Pass hostPowerUps into the constructor
 					MultiplayerGameBoard gameLayout = new MultiplayerGameBoard(
-						this::showMainMenu, activeClient, myName, this.tempPlayerList, isHost
-					);
+							this::showMainMenu, activeClient, myName, this.tempPlayerList, isHost, hostDuration, hostPowerUps
+							);
 					activeClient.setOnMessageReceived(gameLayout::processNetworkMessage);
-					
+
 					Scene gameScene = new Scene(gameLayout, WIDTH, HEIGHT);
 					gameScene.setOnKeyPressed(ev -> gameLayout.addKey(ev.getCode()));
 					gameScene.setOnKeyReleased(ev -> gameLayout.removeKey(ev.getCode()));
@@ -214,7 +222,7 @@ public class Main extends Application {
 				});
 			}
 		});
-		
+
 		activeClient.startListening();
 		activeClient.send("CONNECT " + myName);
 	}
