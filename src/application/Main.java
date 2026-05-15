@@ -26,6 +26,8 @@ public class Main extends Application {
 
 	private GameServer activeServer;
 	private GameClient activeClient;
+	
+	private List<String> tempPlayerList;
 
 	@Override
 	public void start(Stage primaryStage) {
@@ -71,18 +73,23 @@ public class Main extends Application {
 				// HOST BUTTON
 				(Integer maxPlayers, String hostName) -> { 
 					System.out.println("Starting Server for " + maxPlayers + " players...");
-
-					// Use the GLOBAL variable!
 					activeServer = new GameServer(maxPlayers);
 					activeServer.start();
 
-					joinLobby("localhost", true, hostName); 
+					// FIX: Turn spaces into underscores so network packets don't shatter!
+					String cleanName = hostName.trim().replaceAll(" ", "_");
+					String safeHostName = cleanName + "#" + (int)(Math.random() * 9000 + 1000);
+					joinLobby("localhost", true, safeHostName); 
 				},
 
 				// JOIN BUTTON
 				(String targetIp, String joinerName) -> { 
 					System.out.println("Connecting to IP: " + targetIp + " as " + joinerName);
-					joinLobby(targetIp, false, joinerName); 
+					
+					// FIX: Turn spaces into underscores!
+					String cleanName = joinerName.trim().replaceAll(" ", "_");
+					String safeJoinerName = cleanName + "#" + (int)(Math.random() * 9000 + 1000);
+					joinLobby(targetIp, false, safeJoinerName); 
 				}
 				);
 
@@ -90,49 +97,121 @@ public class Main extends Application {
 	}
 
 	public void joinLobby(String ipAddress, boolean isHost, String myName) {
-
-		// Show waiting screen...
-		Text waitingText = new Text("WAITING FOR PLAYERS...");
-		waitingText.setFont(Font.font("Monospaced", FontWeight.BOLD, 40));
-		waitingText.setFill(Color.rgb(232, 224, 192));
-
-		VBox root = new VBox(20);
+		VBox root = new VBox(15);
 		root.setAlignment(Pos.CENTER);
-		root.setStyle("-fx-background-color: #111;");
+		root.setStyle("-fx-background-color: #1a1a1a; -fx-padding: 20;");
 
-		Text subText = new Text("Connected as: " + myName);
-		subText.setFont(Font.font("Monospaced", 18));
-		subText.setFill(Color.GRAY);
+		// 1. IP / JOIN CODE DISPLAY
+		String localIp = "127.0.0.1";
+		try { localIp = java.net.InetAddress.getLocalHost().getHostAddress(); } catch (Exception e) {}
+		Text ipText = new Text("SERVER IP: " + (isHost ? localIp : ipAddress));
+		ipText.setFont(Font.font("Monospaced", FontWeight.BOLD, 22));
+		ipText.setFill(Color.LIGHTBLUE);
 
-		root.getChildren().addAll(waitingText, subText);
+		// 2. DYNAMIC PLAYER COUNTER
+		Text counterText = new Text("PLAYERS: 1 / ?");
+		counterText.setFont(Font.font("Monospaced", 18));
+		counterText.setFill(Color.WHITE);
 
-		Scene lobbyScene = new Scene(root, WIDTH, HEIGHT);
-		window.setScene(lobbyScene);
+		// 3. CHAT FEATURE
+		VBox chatBox = new VBox(5);
+		chatBox.setStyle("-fx-background-color: #000; -fx-padding: 10; -fx-border-color: #444; -fx-border-radius: 5;");
+		chatBox.setPrefHeight(180);
+		chatBox.setMaxWidth(450);
+		
+		Text chatArea = new Text("--- LOBBY CHAT ---\n");
+		chatArea.setFill(Color.LIGHTGREEN);
+		chatArea.setFont(Font.font("Monospaced", 12));
+		
+		// Wrap the text in a ScrollPane just in case you chat a lot!
+		javafx.scene.control.ScrollPane chatScroll = new javafx.scene.control.ScrollPane(chatArea);
+		chatScroll.setStyle("-fx-background: #000; -fx-border-color: transparent;");
+		chatScroll.setFitToWidth(true);
+		chatScroll.setPrefHeight(150);
+		chatBox.getChildren().add(chatScroll);
 
-		// --- USE THE GLOBAL CLIENT ---
+		javafx.scene.control.TextField chatInput = new javafx.scene.control.TextField();
+		chatInput.setPromptText("Press Enter to send message...");
+		chatInput.setMaxWidth(450);
+		chatInput.setOnAction(e -> {
+			if (!chatInput.getText().trim().isEmpty()) {
+				activeClient.send("LOBBY_CHAT " + myName + ": " + chatInput.getText());
+				chatInput.clear();
+			}
+		});
+
+		// 4. START BUTTON (Host Only)
+		javafx.scene.control.Button startBtn = new javafx.scene.control.Button("START GAME");
+		startBtn.setStyle("-fx-background-color: #2e7d32; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 16px;");
+		startBtn.setVisible(isHost);
+		startBtn.setDisable(true); // Locked until lobby is full
+		startBtn.setOnAction(e -> activeClient.send("FORCE_START"));
+
+		// 5. GO BACK / CANCEL BUTTON
+		javafx.scene.control.Button backBtn = new javafx.scene.control.Button("CANCEL & GO BACK");
+		backBtn.setStyle("-fx-background-color: #c62828; -fx-text-fill: white; -fx-font-weight: bold;");
+		backBtn.setOnAction(e -> {
+			// Destroy the connections so the port is freed
+			if (activeServer != null) { activeServer.stop(); activeServer = null; }
+			if (activeClient != null) {
+				activeClient.send("DISCONNECT " + myName);
+				activeClient.disconnect(); 
+				activeClient = null; 
+			}
+			showMainMenu(); 
+		});
+
+		root.getChildren().addAll(ipText, counterText, chatBox, chatInput, startBtn, backBtn);
+		window.setScene(new Scene(root, WIDTH, HEIGHT));
+
+		// --- THE NETWORK CLIENT LOGIC ---
 		activeClient = new GameClient(ipAddress, myName, msg -> {
-			if (msg.startsWith("START")) {
-				String roster = msg.substring(6).trim();
-				List<String> allPlayers = Arrays.asList(roster.split(","));
-
+			
+			// Handle Chat
+			if (msg.startsWith("LOBBY_CHAT")) {
+				String chatLine = msg.substring(11);
 				Platform.runLater(() -> {
-					// We pass the global activeClient to the board
+					chatArea.setText(chatArea.getText() + chatLine + "\n");
+					chatScroll.setVvalue(1.0); // Auto-scroll to bottom
+				});
+			}
+			
+			// Handle Dynamic Player Joins
+			else if (msg.startsWith("LOBBY_UPDATE")) {
+				String[] parts = msg.split(" ", 3);
+				String maxExpected = parts[1];
+				String roster = parts[2].trim();
+				List<String> allPlayers = Arrays.asList(roster.split(","));
+				
+				Platform.runLater(() -> {
+					counterText.setText("PLAYERS: " + allPlayers.size() + " / " + maxExpected);
+					this.tempPlayerList = allPlayers; 
+					
+					// Unlock the Start button for the Host if the room is full!
+					if (isHost && allPlayers.size() == Integer.parseInt(maxExpected)) {
+						startBtn.setDisable(false);
+					}
+				});
+			}
+			
+			// Handle the Host clicking "Start Game"
+			else if (msg.equals("FORCE_START")) {
+				Platform.runLater(() -> {
 					MultiplayerGameBoard gameLayout = new MultiplayerGameBoard(
-							this::showMainMenu, activeClient, myName, allPlayers, isHost
-							);
-
+						this::showMainMenu, activeClient, myName, this.tempPlayerList, isHost
+					);
 					activeClient.setOnMessageReceived(gameLayout::processNetworkMessage);
-
+					
 					Scene gameScene = new Scene(gameLayout, WIDTH, HEIGHT);
-					gameScene.setOnKeyPressed(event -> gameLayout.addKey(event.getCode()));
-					gameScene.setOnKeyReleased(event -> gameLayout.removeKey(event.getCode()));
+					gameScene.setOnKeyPressed(ev -> gameLayout.addKey(ev.getCode()));
+					gameScene.setOnKeyReleased(ev -> gameLayout.removeKey(ev.getCode()));
 					window.setScene(gameScene);
 				});
 			}
 		});
-
-		// Don't forget to start the client thread after creating it!
-		activeClient.startListening(); 
+		
+		activeClient.startListening();
+		activeClient.send("CONNECT " + myName);
 	}
 
 

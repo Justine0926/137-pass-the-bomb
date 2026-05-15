@@ -482,6 +482,10 @@ public class MultiplayerGameBoard extends Pane {
 	}
 
 	private void triggerElimination(long now) {
+		// 1. STOP THE LOOP IMMEDIATELY! 
+		// This freezes movement and prevents the Host from spamming "ELIMINATE"
+		gameLoop.stop(); 
+		
 		explosionSound.play();
 		fuseSound.stop();
 		fusePlayed = false;
@@ -510,7 +514,6 @@ public class MultiplayerGameBoard extends Pane {
 				}
 
 				Image freshGif = new Image(getClass().getResource(gifPath).toExternalForm());
-				// Create a local final reference for the specific death sprite
 				final ImageView currentDeathSprite = new ImageView(freshGif);
 
 				currentDeathSprite.setX(finalLoser.getX()); 
@@ -524,11 +527,8 @@ public class MultiplayerGameBoard extends Pane {
 					fogOverlay.setVisible(false); 
 				}
 
-				// Add it to the screen
 				getChildren().add(currentDeathSprite);
 
-				// --- CLEANUP LOGIC ---
-				// Create a pause that lasts exactly as long as your GIF (adjust millis as needed)
 				javafx.animation.PauseTransition cleanup = new javafx.animation.PauseTransition(javafx.util.Duration.millis(1500));
 
 				cleanup.setOnFinished(event -> {
@@ -541,8 +541,19 @@ public class MultiplayerGameBoard extends Pane {
 
 			activePlayers.remove(loserName);
 
+			// 2. CLEAN UP LINGERING EFFECTS FOR SURVIVORS
+			activePlayers.values().forEach(p -> {
+				p.resetSpeed();
+				p.setFrozen(false);
+				p.setShielded(false);
+			});
+			if (isHost) {
+				hostFreezeTimers.clear();
+				hostSpeedTimers.clear();
+			}
+
 			if (activePlayers.size() <= 1) {
-				gameLoop.stop();
+				// gameLoop.stop() was removed from here because we moved it to the top!
 				Platform.runLater(() -> {
 					String winnerName = activePlayers.keySet().iterator().next();
 					gameOverText.setText("VICTORY! " + winnerName + " WINS!");
@@ -726,23 +737,35 @@ public class MultiplayerGameBoard extends Pane {
 				}
 			});
 		}
+		else if (msg.startsWith("INTERMISSION")) {
+			String countNumber = msg.split(" ")[1];
+			
+			Platform.runLater(() -> {
+				countdownText.setText(countNumber);
+				countdownText.setVisible(true);
+				countdownText.toFront();
+			});
+		}
+		else if (msg.equals("RESTART_ROUND")) {
+			Platform.runLater(() -> {
+				countdownText.setVisible(false);
+				resetRound(); // EVERYONE restarts the exact millisecond the Host says so!
+			});
+		}
 	}
 
 	private void startIntermissionCountdown() {
-		Platform.runLater(() -> {
-			countdownText.setVisible(true);
-			countdownText.toFront();
+		// STRICT HOST-AUTHORITY: Only the Host runs the 3-second timer!
+		if (!isHost) return;
 
+		Platform.runLater(() -> {
 			// Sequence: 3... 2... 1... GO!
 			javafx.animation.Timeline timeline = new javafx.animation.Timeline(
-					new javafx.animation.KeyFrame(javafx.util.Duration.seconds(0), e -> countdownText.setText("3")),
-					new javafx.animation.KeyFrame(javafx.util.Duration.seconds(1), e -> countdownText.setText("2")),
-					new javafx.animation.KeyFrame(javafx.util.Duration.seconds(2), e -> countdownText.setText("1")),
-					new javafx.animation.KeyFrame(javafx.util.Duration.seconds(3), e -> {
-						countdownText.setVisible(false);
-						resetRound();
-					})
-					);
+					new javafx.animation.KeyFrame(javafx.util.Duration.seconds(0), e -> gameClient.send("INTERMISSION 3")),
+					new javafx.animation.KeyFrame(javafx.util.Duration.seconds(1), e -> gameClient.send("INTERMISSION 2")),
+					new javafx.animation.KeyFrame(javafx.util.Duration.seconds(2), e -> gameClient.send("INTERMISSION 1")),
+					new javafx.animation.KeyFrame(javafx.util.Duration.seconds(3), e -> gameClient.send("RESTART_ROUND"))
+			);
 			timeline.play();
 		});
 	}
@@ -758,6 +781,15 @@ public class MultiplayerGameBoard extends Pane {
 
 		// Restart timer and game loop
 		roundStartTime = System.nanoTime();
+		
+		// 3. RESET HOST ITEM TIMERS
+		// Prevents traps and powerups from instantly spawning because 3 seconds passed in real-life
+		if (isHost) {
+			lastPowerUpSpawnTime = roundStartTime;
+			lastTrapSpawnTime = roundStartTime;
+			bombLastPassedTime = roundStartTime;
+		}
+		
 		gameLoop.start();
 	}
 

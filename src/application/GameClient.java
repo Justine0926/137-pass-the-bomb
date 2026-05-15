@@ -69,10 +69,12 @@ public class GameClient {
 					});
 
 				} catch (Exception e) {
-					if (isRunning) {
-						System.err.println("Error receiving packet from server:");
-						e.printStackTrace();
-					}
+					if (!isRunning) {
+				        System.out.println("Client listener safely terminated.");
+				        break; 
+				    } else {
+				        e.printStackTrace();
+				    }
 				}
 			}
 		});

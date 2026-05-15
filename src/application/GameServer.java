@@ -78,11 +78,11 @@ public class GameServer {
 
 	private void processIncomingMessage(String message, InetAddress address, int port) {
 		System.out.println("SERVER HEARD: " + message);
-		// 1. Handle New Connections
+		//handle join
 		if (message.startsWith("CONNECT")) {
 			String playerName = message.split(" ")[1];
 
-			// Prevent duplicate connections from same person/port
+			// prevent duplicate connections from same person/port
 			boolean alreadyExists = false;
 			for(ClientConnection c : clients) {
 				if(c.address.equals(address) && c.port == port) alreadyExists = true;
@@ -92,23 +92,22 @@ public class GameServer {
 				clients.add(new ClientConnection(address, port, playerName));
 				System.out.println("[SERVER] " + playerName + " connected.");
 
-				// --- THE FIX IS HERE ---
+				// --- DYNAMIC LOBBY UPDATE ---
+				// announce the new roster every time someone joins, so the counter goes 1/4, 2/4, etc.
+				List<String> names = new ArrayList<>();
+				for (ClientConnection c : clients) {
+					names.add(c.name);
+				}
+				String roster = String.join(",", names);
+
+				broadcast("LOBBY_UPDATE " + maxPlayers + " " + roster);
+				
 				if (clients.size() == maxPlayers) {
-					System.out.println("[SERVER] Lobby full. Broadcasting roster...");
-
-					// 1. Create a comma-separated list of all names
-					List<String> names = new ArrayList<>();
-					for (ClientConnection c : clients) {
-						names.add(c.name);
-					}
-					String roster = String.join(",", names);
-
-					// 2. Broadcast "START Host,Alice,Bob"
-					broadcast("START " + roster);
+					System.out.println("[SERVER] Lobby is full! Waiting for Host to start.");
 				}
 			}
-		} 
-		// 2. Handle Gameplay Data
+		}
+		// gameplay data
 		else if (message.startsWith("PLAYER") || 
 				message.startsWith("BOMB_PASS") || 
 				message.startsWith("TIME") || 
@@ -116,9 +115,43 @@ public class GameServer {
 				message.startsWith("SPAWN") ||
 				message.startsWith("APPLY") ||
 				message.startsWith("REMOVE")||
-				message.startsWith("BREAK_SHIELD")) {
+				message.startsWith("BREAK_SHIELD")||
+				message.startsWith("FORCE_START")||
+				message.startsWith("INTERMISSION") ||
+				message.equals("RESTART_ROUND") ||
+				message.startsWith("LOBBY_CHAT")) {
 
 			broadcast(message);
+		}
+		//disconnects
+		else if (message.startsWith("DISCONNECT")) {
+			String leftName = message.split(" ")[1];
+			
+			// Find the specific ClientConnection object in your list
+			ClientConnection leavingClient = null;
+			for (ClientConnection c : clients) {
+				if (c.name.equals(leftName)) {
+					leavingClient = c;
+					break;
+				}
+			}
+			
+			if (leavingClient != null) {
+				// Remove the ghost from the Server's memory!
+				clients.remove(leavingClient);
+				
+				System.out.println("[SERVER] " + leftName + " left the lobby.");
+				
+				// Rebuild the roster without them
+				List<String> remainingNames = new ArrayList<>();
+				for (ClientConnection c : clients) {
+					remainingNames.add(c.name);
+				}
+				String roster = String.join(",", remainingNames);
+				
+				// Broadcast the updated roster to everyone still waiting
+				broadcast("LOBBY_UPDATE " + maxPlayers + " " + roster);
+			}
 		}
 	}
 

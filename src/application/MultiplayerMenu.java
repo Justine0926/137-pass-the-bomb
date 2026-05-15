@@ -19,7 +19,6 @@ public class MultiplayerMenu extends Pane {
     private BiConsumer<Integer, String> onHost;
     private BiConsumer<String, String> onJoin;
 
-    // Updated Constructor to expect the new data!
     public MultiplayerMenu(Runnable onBack, BiConsumer<Integer, String> onHost, BiConsumer<String, String> onJoin) {
         this.onBack = onBack;
         this.onHost = onHost;
