@@ -27,34 +27,34 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.application.Platform;
 
-//THIS IS THE CLASS FOR THE GAMEBOARD/MAP
-//where the game takes place
+// THIS IS THE CLASS FOR THE GAMEBOARD/MAP
+// where the game takes place
 public class GameBoard extends Pane {
-	//initialize players
+	// initialize players
 	private final Player player1;
 	private final Player player2;
 	private Group gameWorld;
 
-	//screen layout
+	// screen layout
 	private final Text timerText;
 	private final Text gameOverText;
 	private final Button returnButton; 
 
-	//moves storage
+	// moves storage
 	private final Set<KeyCode> activeKeys = new HashSet<>();
 	private AnimationTimer gameLoop;
 	private ImageView deathGif;
 
-	private final long gameDurationNanos = 90_000_000_000L;
+	// Dynamic Time from Settings!
+	private final long gameDurationNanos = GameSettings.roundDurationSeconds * 1_000_000_000L;
 	private final long cooldownNanos = 1_000_000_000L;
 	private long bombLastPassedTime = 0;
 
 	// limited vision variables
-	//    private final Group darknessLayer;
 	private final Circle p1Vision;
 	private final Circle p2Vision;
 
-	//sound
+	// sound
 	// TEMP: disabled until JavaFX media playback is restored on Fedora 43.
 	// Flip AUDIO_ENABLED to re-enable.
 	private static final boolean AUDIO_ENABLED = false;
@@ -65,10 +65,10 @@ public class GameBoard extends Pane {
 	// obstacles
 	private final List<Rectangle> obstacles = new ArrayList<>();
 
-	//randomized bomb holder
+	// randomized bomb holder
 	boolean bombHolder = Math.random() < 0.5;
 
-	//freeze (copy pasted)
+	// freeze (copy pasted)
 	private final Circle[] freezeTraps = new Circle[2];
 	private long p1FrozenUntil = 0;
 	private long p2FrozenUntil = 0;
@@ -93,7 +93,8 @@ public class GameBoard extends Pane {
 				KeyCode.UP, KeyCode.DOWN, KeyCode.LEFT, KeyCode.RIGHT, !bombHolder, "PLAYER 2");
 
 		// --- TIMER TEXT ---
-		timerText = new Text(300, 50, "TIME: 90");
+		// Merged: Kept X:300 so it doesn't fall off the screen, but applied dynamic GameSettings time
+		timerText = new Text(300, 50, "TIME: " + GameSettings.roundDurationSeconds);
 		timerText.setFont(Font.font("Monospaced", FontWeight.BOLD, 30));
 		timerText.setFill(Color.rgb(0xE8, 0xE0, 0xC0)); // MainMenu ACCENT color
 		timerText.setStroke(Color.rgb(0x08, 0x08, 0x08)); // MainMenu BLACK
@@ -111,7 +112,7 @@ public class GameBoard extends Pane {
 		gameOverText = new Text(150, 180, "");
 		gameOverText.setFont(Font.font("Monospaced", FontWeight.BOLD, 22));
 		gameOverText.setStroke(Color.rgb(0x08, 0x08, 0x08)); 
-		gameOverText.setStrokeWidth(1); // Slightly thicker outline for bigger text
+		gameOverText.setStrokeWidth(1); 
 
 		DropShadow gameOverShadow = new DropShadow();
 		gameOverShadow.setOffsetY(6);
@@ -124,7 +125,7 @@ public class GameBoard extends Pane {
 
 		// ---RETURN BUTTON ---
 		returnButton = new Button("BACK TO MAIN MENU"); 
-		returnButton.setFont(Font.font("Monospaced", FontWeight.BOLD, 18)); // Matches MENU_FONT_SIZE
+		returnButton.setFont(Font.font("Monospaced", FontWeight.BOLD, 18)); 
 		returnButton.setStyle("-fx-background-color: transparent; -fx-text-fill: rgb(144, 140, 128); -fx-cursor: hand;");
 		returnButton.setPrefWidth(300);
 		returnButton.setLayoutX(200); 
@@ -138,35 +139,26 @@ public class GameBoard extends Pane {
 		returnButton.setEffect(buttonShadow);
 
 		// --- BUTTON HOVER EFFECTS ---
-		// When the mouse enters, change color to ACCENT (rgb(232, 224, 192))
 		returnButton.setOnMouseEntered(e -> {
 			returnButton.setStyle("-fx-background-color: transparent; -fx-text-fill: rgb(232, 224, 192); -fx-cursor: hand;");
 		});
 
-		// When the mouse leaves, change back to DIM_WHITE (rgb(144, 140, 128))
 		returnButton.setOnMouseExited(e -> {
 			returnButton.setStyle("-fx-background-color: transparent; -fx-text-fill: rgb(144, 140, 128); -fx-cursor: hand;");
 		});
 
-		// when clicked, run the menu method
 		returnButton.setOnAction(e -> onMenuReturn.run());
 
 		// --- BACKGROUND ARENA LOGIC ---
-		// get the image file in the screens folder
 		Image mapImage = new Image(getClass().getResource("/screens/arena.png").toExternalForm());
-
-		// place the image
 		ImageView mapBackground = new ImageView(mapImage);
-
-		// stretch the image to fill the exact size of our window
 		mapBackground.setFitWidth(700);
 		mapBackground.setFitHeight(400);
 
 		// --- RANDOM OBSTACLE SETUP ---
 		int numberOfObstacles = 6; 
-		double obstacleSize = 40; //obstacle size
+		double obstacleSize = 40; 
 
-		//load image
 		Image crateImg = new Image(getClass().getResource("/sprites/obstacle/fence.png").toExternalForm());
 		ImagePattern crateTexture = new ImagePattern(crateImg);
 
@@ -175,37 +167,25 @@ public class GameBoard extends Pane {
 			Rectangle newWall = null;
 
 			while (!isSafeSpot) {
-				// randomize position 
 				double randomX = Math.random() * (660 - obstacleSize);
 				double randomY = Math.random() * (400 - obstacleSize);
 
-				// build the physical hitbox
 				newWall = new Rectangle(randomX, randomY, obstacleSize, obstacleSize);
-
-				// paint the rectangle with your image instead of Color.DARKGRAY
 				newWall.setFill(crateTexture); 
 
-				// ensure the wall doesn't spawn on top of Player 1 or Player 2
 				if (!newWall.getBoundsInParent().intersects(player1.getBoundsInParent()) && 
-						!newWall.getBoundsInParent().intersects(player2.getBoundsInParent())) {
-
+					!newWall.getBoundsInParent().intersects(player2.getBoundsInParent())) {
 					isSafeSpot = true; 
 				}
 			}
-
 			obstacles.add(newWall);
 		}
 
 		// ---FOG OF WAR LOGIC ---
-
-		// THE CLOUDS (Bottom Layer)
-		// draw the clouds normally at the very back of the screen.
 		Image fogImg = new Image(getClass().getResource("/screens/cloud.png").toExternalForm());
 		ImagePattern fogTexture = new ImagePattern(fogImg);
 		Rectangle fogBackground = new Rectangle(700, 400, fogTexture);
 
-		// The Flashlights
-		// White acts as "Visible", Transparent acts as "Invisible"
 		RadialGradient visionLight = new RadialGradient(
 				0, 0, 0.5, 0.5, 0.5, true, CycleMethod.NO_CYCLE,
 				new Stop(0, Color.WHITE),
@@ -216,9 +196,7 @@ public class GameBoard extends Pane {
 		Group visionMask = new Group(p1Vision, p2Vision);
 
 		// THE GAME WORLD 
-		// group everything that should be hidden by the fog into one container
 		gameWorld = new Group();
-
 		gameWorld.getChildren().add(mapBackground); 
 		gameWorld.getChildren().addAll(obstacles);
 
@@ -226,7 +204,13 @@ public class GameBoard extends Pane {
 			freezeTraps[i] = new Circle(20, Color.CYAN);
 			freezeTraps[i].setStroke(Color.WHITE);
 			freezeTraps[i].setStrokeWidth(3);
-			spawnTrap(freezeTraps[i]);
+			
+			// Applied Settings Check
+			if (GameSettings.powerUpsEnabled) {
+				spawnTrap(freezeTraps[i]);
+			} else {
+				freezeTraps[i].setVisible(false);
+			}
 			gameWorld.getChildren().add(freezeTraps[i]);
 		}
 
@@ -234,26 +218,30 @@ public class GameBoard extends Pane {
 		gameWorld.getChildren().addAll(player1.getShieldAura(), player2.getShieldAura());
 		gameWorld.getChildren().addAll(player1.getNameTag(), player2.getNameTag());
 
-		// spawn one initial power-up so the board isn't empty
-		spawnPowerUp();
-		// inside the white pixels of the visionMask!
+		// Spawn initial power-up if enabled
+		if (GameSettings.powerUpsEnabled) {
+			spawnPowerUp();
+		}
+
 		gameWorld.setBlendMode(BlendMode.SRC_ATOP);
 
-		//sound
+		// sound (Merged AUDIO_ENABLED flag with the new dynamic sfxEnabled Setting)
 		if (AUDIO_ENABLED) {
 			fuseSound = new AudioClip(getClass().getResource("/music/fuse_music.mp3").toExternalForm());
 			explosionSound = new AudioClip(getClass().getResource("/music/explosion_music.mp3").toExternalForm());
-			explosionSound.setVolume(1.0);
+			
+			if (!GameSettings.sfxEnabled) {
+				fuseSound.setVolume(0);
+				explosionSound.setVolume(0);
+			} else {
+				explosionSound.setVolume(1.0);
+			}
 		}
 
-		// package the mask and the game world together and turn on caching. 
-		// This forces JavaFX to cut the holes properly before placing it over the clouds.
 		Group maskedWorld = new Group(visionMask, gameWorld);
 		maskedWorld.setCache(true); 
 
-		// ADD TO SCREEN
 		this.getChildren().addAll(fogBackground, maskedWorld, timerText, gameOverText, returnButton);
-
 		startGame();
 	}
 
@@ -276,14 +264,11 @@ public class GameBoard extends Pane {
 	}
 
 	private void spawnPowerUp() {
-		// cap concurrent power-ups on the board
 		long onBoard = activePowerUps.stream().filter(p -> !p.isCollected()).count();
 		if (onBoard >= maxActivePowerUps) return;
 
-		// 50/50 between SPEED and SHIELD
 		PowerUp.PowerUpType type = Math.random() < 0.5
-				? PowerUp.PowerUpType.SPEED
-						: PowerUp.PowerUpType.SHIELD;
+				? PowerUp.PowerUpType.SPEED : PowerUp.PowerUpType.SHIELD;
 
 		double x = 0, y = 0;
 		boolean safe = false;
@@ -304,7 +289,7 @@ public class GameBoard extends Pane {
 			}
 			tries++;
 		}
-		if (!safe) return; // give up this tick; we'll try again next interval
+		if (!safe) return; 
 
 		PowerUp pu = new PowerUp(type, x, y);
 		activePowerUps.add(pu);
@@ -314,7 +299,6 @@ public class GameBoard extends Pane {
 	public void addKey(KeyCode code) { activeKeys.add(code); }
 	public void removeKey(KeyCode code) { activeKeys.remove(code); }
 
-	// method for starting the game
 	private void startGame() {
 		gameLoop = new AnimationTimer() {
 			long startTime = -1;
@@ -326,7 +310,6 @@ public class GameBoard extends Pane {
 				long elapsedNanos = now - startTime;
 				long timeRemaining = (gameDurationNanos - elapsedNanos) / 1_000_000_000L;
 
-				//                end game if there is no time remaining
 				if (timeRemaining <= 0) {
 					endGame();
 					return;
@@ -338,17 +321,14 @@ public class GameBoard extends Pane {
 				}
 
 				timerText.setText("TIME: " + timeRemaining);
-				// move players
 				player1.move(activeKeys, getWidth(), getHeight(), obstacles);
 				player2.move(activeKeys, getWidth(), getHeight(), obstacles);
 
-				// make the vision circles follow the players
 				p1Vision.setCenterX(player1.getCenterX() - 30);
 				p1Vision.setCenterY(player1.getCenterY());
 				p2Vision.setCenterX(player2.getCenterX() - 30);
 				p2Vision.setCenterY(player2.getCenterY());
 
-				//frozen
 				if (p1FrozenUntil > 0 && now >= p1FrozenUntil) {
 					player1.setFrozen(false);
 					p1FrozenUntil = 0;
@@ -358,7 +338,6 @@ public class GameBoard extends Pane {
 					p2FrozenUntil = 0;
 				}
 
-				// speed-boost expiry per player
 				if (p1SpeedBoostEnd > 0 && now >= p1SpeedBoostEnd) {
 					player1.resetSpeed();
 					p1SpeedBoostEnd = 0;
@@ -374,7 +353,6 @@ public class GameBoard extends Pane {
 		gameLoop.start();
 	}
 
-	//  collision checker
 	private void checkCollision(long now) {
 		// --- Bomb pass with shield handling ---
 		if (player1.getHitbox().intersects(player2.getHitbox())
@@ -384,7 +362,6 @@ public class GameBoard extends Pane {
 			Player receiver = (holder == player1) ? player2 : player1;
 
 			if (receiver.isShielded()) {
-				// shield absorbs this would-be pass and breaks
 				receiver.breakShield();
 			} else {
 				holder.setBomb(false);
@@ -392,9 +369,9 @@ public class GameBoard extends Pane {
 			}
 			bombLastPassedTime = now;
 		}
-		// freeze
+		
 		// PowerUp Spawning Logic
-		if (now - lastPowerUpSpawnTime > 5_000_000_000L && Math.random() < 0.05) {
+		if (GameSettings.powerUpsEnabled && now - lastPowerUpSpawnTime > 5_000_000_000L && Math.random() < 0.05) {
 			for (Circle trap : freezeTraps) {
 				if (!trap.isVisible()) {
 					spawnTrap(trap);
@@ -405,22 +382,25 @@ public class GameBoard extends Pane {
 		}
 
 		// PowerUp Collision Logic (freezes the player who touches it)
-		for (Circle trap : freezeTraps) {
-			if (trap.isVisible()) {
-				if (player1.getHitbox().intersects(trap.getBoundsInParent())) {
-					trap.setVisible(false);
-					p1FrozenUntil = now + 5_000_000_000L; // 5 seconds
-					player1.setFrozen(true);
-				} else if (player2.getHitbox().intersects(trap.getBoundsInParent())) {
-					trap.setVisible(false);
-					p2FrozenUntil = now + 5_000_000_000L; // 5 seconds
-					player2.setFrozen(true);
+		// Merged: Wrapped in GameSettings check, but kept the strict getHitbox() logic from HEAD
+		if (GameSettings.powerUpsEnabled) {
+			for (Circle trap : freezeTraps) {
+				if (trap.isVisible()) {
+					if (player1.getHitbox().intersects(trap.getBoundsInParent())) {
+						trap.setVisible(false);
+						p1FrozenUntil = now + 5_000_000_000L; 
+						player1.setFrozen(true);
+					} else if (player2.getHitbox().intersects(trap.getBoundsInParent())) {
+						trap.setVisible(false);
+						p2FrozenUntil = now + 5_000_000_000L; 
+						player2.setFrozen(true);
+					}
 				}
 			}
 		}
 
 		// --- Periodic power-up spawn ---
-		if (now - lastPowerUpSpawnTime > spawnIntervalNanos) {
+		if (GameSettings.powerUpsEnabled && now - lastPowerUpSpawnTime > spawnIntervalNanos) {
 			spawnPowerUp();
 			lastPowerUpSpawnTime = now;
 		}
@@ -451,22 +431,18 @@ public class GameBoard extends Pane {
 		else              p2SpeedBoostEnd = now + speedBoostDurationNanos;
 	}
 
-	//    end game screen
 	private void endGame() {
-		// 1. Stop the game loop and handle audio immediately
 		gameLoop.stop();
 		if (AUDIO_ENABLED) {
 			if (explosionSound != null) explosionSound.play();
 			if (fuseSound != null) fuseSound.stop();
 		}
 
-		// clear lingering power-up effects so visuals don't persist on the death screen
 		player1.resetSpeed();
 		player2.resetSpeed();
 		player1.setShielded(false);
 		player2.setShielded(false);
 
-		// 2. Queue all visual UI updates and scene graph mutations safely
 		Platform.runLater(() -> {
 
 			timerText.setText("TIME: 0");
@@ -499,11 +475,9 @@ public class GameBoard extends Pane {
 			deathGif.setX(loser.getX());
 			deathGif.setY(loser.getY());
 
-			//hide the loser instead of deleting them so we don't break the cache!
 			loser.setVisible(false);
 			loser.getNameTag().setVisible(false);
 
-			// add the death GIF directly to the main screen, OVER the fog!
 			getChildren().add(deathGif);
 
 			gameOverText.toFront();
@@ -520,9 +494,8 @@ public class GameBoard extends Pane {
 				gameOverText.setFill(Color.rgb(50,150,255));
 			}
 
-			// Recalculate layout dynamically
 			gameOverText.setX((700 - gameOverText.getLayoutBounds().getWidth()) / 2);
 
-		}); // End of Platform.runLater
+		}); 
 	}
 }

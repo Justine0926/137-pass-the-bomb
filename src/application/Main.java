@@ -35,12 +35,17 @@ public class Main extends Application {
 		window.setTitle("boom tarat tarat");
 		window.setResizable(false);
 
-		// background music
-		Media sound = new Media(getClass().getResource("/music/bg_music.mp3").toExternalForm());
+		// background music (Merged: updated to .wav from the settings branch)
+		Media sound = new Media(getClass().getResource("/music/bg_music.wav").toExternalForm());
 		bgMusic = new MediaPlayer(sound);
 		bgMusic.setCycleCount(MediaPlayer.INDEFINITE); // loop forever
 		bgMusic.setVolume(0.5); // volume 0.0 to 1.0
 		bgMusic.play();
+
+		// Merged: Listen for settings changes to mute/unmute music
+		GameSettings.onSettingsUpdated = () -> {
+			bgMusic.setMute(!GameSettings.musicEnabled);
+		};
 
 		// show the main menu when the app first opens
 		showMainMenu();
@@ -59,7 +64,7 @@ public class Main extends Application {
 			activeClient = null;
 		}
 		// create the menu and tell it what methods to run when buttons are clicked
-		MainMenu menuLayout = new MainMenu(this::startGame,this::showMultiplayerMenu, () -> window.close());
+		MainMenu menuLayout = new MainMenu(this::startGame, this::showMultiplayerMenu, () -> window.close());
 		Scene menuScene = new Scene(menuLayout, WIDTH, HEIGHT);
 
 		window.setScene(menuScene);
@@ -91,7 +96,7 @@ public class Main extends Application {
 					String safeJoinerName = cleanName + "#" + (int)(Math.random() * 9000 + 1000);
 					joinLobby(targetIp, false, safeJoinerName); 
 				}
-				);
+		);
 
 		window.setScene(new Scene(mpMenu, WIDTH, HEIGHT));
 	}
@@ -227,7 +232,6 @@ public class Main extends Application {
 
 		window.setScene(gameScene);
 	}
-
 
 
 	@Override

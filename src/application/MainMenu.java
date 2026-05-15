@@ -26,7 +26,7 @@ public class MainMenu extends StackPane {
     static final Color BLACK      = Color.rgb(0x08, 0x08, 0x08);
     static final Color ACCENT     = Color.rgb(0xE8, 0xE0, 0xC0);
 
-    // layout
+    // layout (Kept 700x400 from HEAD so it perfectly matches the GameBoard)
     static final int W = 700, H = 400;
 
     // title region
@@ -56,7 +56,7 @@ public class MainMenu extends StackPane {
     Random rnd = new Random();
 
     Runnable onStart;
-    Runnable onMultiplayer;
+    Runnable onMultiplayer; // Kept from HEAD
     Runnable onExit;
 
     // font sizes
@@ -129,7 +129,21 @@ public class MainMenu extends StackPane {
     void handleBtn(int i) {
         switch (i) {
             case 0 -> onStart.run();
-            case 1 -> onMultiplayer.run();
+            case 1 -> onMultiplayer.run(); // From HEAD
+            case 2 -> {
+                // Show How To Play as an overlay (From feat/shamel)
+                HowToPlayScreen overlay = new HowToPlayScreen(() -> {
+                    this.getChildren().remove(this.getChildren().size() - 1); // remove the overlay
+                });
+                this.getChildren().add(overlay);
+            }
+            case 3 -> {
+                // Show Settings as an overlay (From feat/shamel)
+                SettingsScreen overlay = new SettingsScreen(() -> {
+                    this.getChildren().remove(this.getChildren().size() - 1); // remove the overlay
+                });
+                this.getChildren().add(overlay);
+            }
             case 4 -> onExit.run();
             default -> System.out.println("Clicked " + BTN_LABELS[i] + " ... NotImplemented");
         }
