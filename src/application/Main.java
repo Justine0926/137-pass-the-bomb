@@ -82,52 +82,52 @@ public class Main extends Application {
 	}
 
 	public void joinLobby(String ipAddress, boolean isHost, String myName) {
-	    // 1. Declare the variable at the top level of the method
-	    // We use an array trick or a class field if we need to access it inside the lambda
-	    final GameClient[] clientWrapper = new GameClient[1]; 
+		// 1. Declare the variable at the top level of the method
+		// We use an array trick or a class field if we need to access it inside the lambda
+		final GameClient[] clientWrapper = new GameClient[1]; 
 
-	    // 2. Show waiting screen...
-	    Text waitingText = new Text("WAITING FOR PLAYERS...");
-	    waitingText.setFont(Font.font("Monospaced", FontWeight.BOLD, 40));
-	    waitingText.setFill(Color.rgb(232, 224, 192));
-	    
-	    VBox root = new VBox(20);
-	    root.setAlignment(Pos.CENTER);
-	    root.setStyle("-fx-background-color: #111;");
-	    
-	    // Let's add a little detail so you know it's working
-	    Text subText = new Text("Connected as: " + myName);
-	    subText.setFont(Font.font("Monospaced", 18));
-	    subText.setFill(Color.GRAY);
-	    
-	    root.getChildren().addAll(waitingText, subText);
-	    
-	    Scene lobbyScene = new Scene(root, WIDTH, HEIGHT);
-	    window.setScene(lobbyScene);
-	    // 3. Initialize the client
-	    clientWrapper[0] = new GameClient(ipAddress, myName, msg -> {
-	        if (msg.startsWith("START")) {
-	            String roster = msg.substring(6).trim();
-	            List<String> allPlayers = Arrays.asList(roster.split(","));
+		// 2. Show waiting screen...
+		Text waitingText = new Text("WAITING FOR PLAYERS...");
+		waitingText.setFont(Font.font("Monospaced", FontWeight.BOLD, 40));
+		waitingText.setFill(Color.rgb(232, 224, 192));
 
-	            Platform.runLater(() -> {
-	                MultiplayerGameBoard gameLayout = new MultiplayerGameBoard(
-	                    this::showMainMenu, clientWrapper[0], myName, allPlayers, isHost
-	                );
-	                
-	                // Now this is safe because clientWrapper[0] is definitely assigned
-	                clientWrapper[0].setOnMessageReceived(gameLayout::processNetworkMessage);
-	                
-	                Scene gameScene = new Scene(gameLayout, WIDTH, HEIGHT);
-	            	gameScene.setOnKeyPressed(event -> gameLayout.addKey(event.getCode()));
-	            	gameScene.setOnKeyReleased(event -> gameLayout.removeKey(event.getCode()));
-	            	window.setScene(gameScene);
-	            });
-	        }
-	    });
+		VBox root = new VBox(20);
+		root.setAlignment(Pos.CENTER);
+		root.setStyle("-fx-background-color: #111;");
+
+		// Let's add a little detail so you know it's working
+		Text subText = new Text("Connected as: " + myName);
+		subText.setFont(Font.font("Monospaced", 18));
+		subText.setFill(Color.GRAY);
+
+		root.getChildren().addAll(waitingText, subText);
+
+		Scene lobbyScene = new Scene(root, WIDTH, HEIGHT);
+		window.setScene(lobbyScene);
+		// 3. Initialize the client
+		clientWrapper[0] = new GameClient(ipAddress, myName, msg -> {
+			if (msg.startsWith("START")) {
+				String roster = msg.substring(6).trim();
+				List<String> allPlayers = Arrays.asList(roster.split(","));
+
+				Platform.runLater(() -> {
+					MultiplayerGameBoard gameLayout = new MultiplayerGameBoard(
+							this::showMainMenu, clientWrapper[0], myName, allPlayers, isHost
+							);
+
+					// Now this is safe because clientWrapper[0] is definitely assigned
+					clientWrapper[0].setOnMessageReceived(gameLayout::processNetworkMessage);
+
+					Scene gameScene = new Scene(gameLayout, WIDTH, HEIGHT);
+					gameScene.setOnKeyPressed(event -> gameLayout.addKey(event.getCode()));
+					gameScene.setOnKeyReleased(event -> gameLayout.removeKey(event.getCode()));
+					window.setScene(gameScene);
+				});
+			}
+		});
 	}
 
-	
+
 	// method to create and display the Game Scene
 	public void startGame() {
 		// pass the showMainMenu method into the GameBoard!

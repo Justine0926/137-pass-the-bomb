@@ -102,7 +102,11 @@ public class GameServer {
 			}
 		} 
 		// 2. Handle Gameplay Data
-		else if (message.startsWith("PLAYER") || message.startsWith("BOMB_PASS")) {
+		else if (message.startsWith("PLAYER") || 
+				message.startsWith("BOMB_PASS") || 
+				message.startsWith("TIME") || 
+				message.equals("ELIMINATE")) {
+
 			broadcast(message);
 		}
 	}

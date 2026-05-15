@@ -45,10 +45,12 @@ public class MultiplayerGameBoard extends Pane {
 	private final Text gameOverText;
 	private final Button returnButton;
 	private final Text countdownText;
+	//	time sync var
+	private long lastBroadcastedTime = -1;
 
 	private final Set<KeyCode> activeKeys = new HashSet<>();
 	private AnimationTimer gameLoop;
-//	private ImageView deathGif;
+	//	private ImageView deathGif;
 
 	private final long roundDurationNanos = 30_000_000_000L; 
 	private final long cooldownNanos = 1_000_000_000L;
@@ -61,8 +63,8 @@ public class MultiplayerGameBoard extends Pane {
 
 	private final List<Rectangle> obstacles = new ArrayList<>();
 	private boolean isHost;
-	
-	
+
+
 
 	public MultiplayerGameBoard(Runnable onMenuReturn, GameClient client, String myName, List<String> allPlayers, boolean isHost) {
 		this.gameClient = client;
@@ -87,7 +89,7 @@ public class MultiplayerGameBoard extends Pane {
 		countdownText.setStroke(Color.BLACK);
 		countdownText.setStrokeWidth(3);
 		countdownText.setVisible(false);
-		
+
 		gameOverText = new Text(150, 180, "");
 		gameOverText.setFont(Font.font("Monospaced", FontWeight.BOLD, 22));
 		gameOverText.setStroke(Color.rgb(0x08, 0x08, 0x08)); gameOverText.setStrokeWidth(1); 
@@ -250,23 +252,36 @@ public class MultiplayerGameBoard extends Pane {
 			@Override
 			public void handle(long timerNow) {
 				long now = System.nanoTime(); 
-				if (roundStartTime == -1) roundStartTime = now;
 
-				long elapsedNanos = now - roundStartTime;
-				long timeRemaining = (roundDurationNanos - elapsedNanos) / 1_000_000_000L;
+				// 1. HOST-AUTHORITATIVE TIME LOGIC
+				if (isHost) {
+					if (roundStartTime == -1) roundStartTime = now;
 
-				if (timeRemaining <= 0) {
-					triggerElimination(now);
-					return; 
+					long elapsedNanos = now - roundStartTime;
+					long timeRemaining = (roundDurationNanos - elapsedNanos) / 1_000_000_000L;
+
+					// If time is up, Host tells everyone to blow up!
+					if (timeRemaining <= 0) {
+						gameClient.send("ELIMINATE"); 
+						triggerElimination(now);
+						return; 
+					}
+
+					// Only send a network packet if the second actually changed
+					if (timeRemaining != lastBroadcastedTime) {
+						gameClient.send("TIME " + timeRemaining);
+						lastBroadcastedTime = timeRemaining;
+
+						// Host updates its own text and sound natively
+						timerText.setText("TIME: " + timeRemaining);
+						if (timeRemaining <= 5 && !fusePlayed) {
+							fuseSound.play();
+							fusePlayed = true;
+						}
+					}
 				}
 
-				if (timeRemaining <= 5 && !fusePlayed) {
-					fuseSound.play();
-					fusePlayed = true;
-				}
-
-				timerText.setText("TIME: " + timeRemaining);
-
+				// 2. PLAYER MOVEMENT (Both Host and Clients still do this!)
 				if (localPlayer != null && activePlayers.containsKey(myName)) {
 					localPlayer.move(activeKeys, getWidth(), getHeight(), obstacles);
 
@@ -282,13 +297,10 @@ public class MultiplayerGameBoard extends Pane {
 						double cy = localPlayer.getCenterY();
 						double r = 80;
 
-						// Update the two halves of the vector circle
 						holeStart.setX(cx + r); holeStart.setY(cy);
-
 						holeArc1.setX(cx - r);  holeArc1.setY(cy);
 						holeArc2.setX(cx + r);  holeArc2.setY(cy);
 
-						// Update the shadow overlay
 						fogFade.setCenterX(cx);
 						fogFade.setCenterY(cy);
 					}
@@ -350,43 +362,43 @@ public class MultiplayerGameBoard extends Pane {
 		if (loser != null) {
 			final Player finalLoser = loser;
 			Platform.runLater(() -> {
-			    timerText.setText("TIME: 0");
-			    
-			    String gifPath = "/sprites/die/with_bomb_front.gif";
-			    switch (finalLoser.getFacing()) {
-			        case LEFT:  gifPath = "/sprites/die/with_bomb_left.gif"; break;
-			        case RIGHT: gifPath = "/sprites/die/with_bomb_right.gif"; break;
-			        case UP:    gifPath = "/sprites/die/with_bomb_back.gif"; break;
-			        case DOWN:  gifPath = "/sprites/die/with_bomb_front.gif"; break;
-			    }
+				timerText.setText("TIME: 0");
 
-			    Image freshGif = new Image(getClass().getResource(gifPath).toExternalForm());
-			    // Create a local final reference for the specific death sprite
-			    final ImageView currentDeathSprite = new ImageView(freshGif);
+				String gifPath = "/sprites/die/with_bomb_front.gif";
+				switch (finalLoser.getFacing()) {
+				case LEFT:  gifPath = "/sprites/die/with_bomb_left.gif"; break;
+				case RIGHT: gifPath = "/sprites/die/with_bomb_right.gif"; break;
+				case UP:    gifPath = "/sprites/die/with_bomb_back.gif"; break;
+				case DOWN:  gifPath = "/sprites/die/with_bomb_front.gif"; break;
+				}
 
-			    currentDeathSprite.setX(finalLoser.getX()); 
-			    currentDeathSprite.setY(finalLoser.getY());
+				Image freshGif = new Image(getClass().getResource(gifPath).toExternalForm());
+				// Create a local final reference for the specific death sprite
+				final ImageView currentDeathSprite = new ImageView(freshGif);
 
-			    finalLoser.setVisible(false);
-			    finalLoser.getNameTag().setVisible(false);
+				currentDeathSprite.setX(finalLoser.getX()); 
+				currentDeathSprite.setY(finalLoser.getY());
 
-			    if (finalLoser == localPlayer && fogOverlay != null) {
-			        fogOverlay.setVisible(false); 
-			    }
+				finalLoser.setVisible(false);
+				finalLoser.getNameTag().setVisible(false);
 
-			    // Add it to the screen
-			    getChildren().add(currentDeathSprite);
+				if (finalLoser == localPlayer && fogOverlay != null) {
+					fogOverlay.setVisible(false); 
+				}
 
-			    // --- CLEANUP LOGIC ---
-			    // Create a pause that lasts exactly as long as your GIF (adjust millis as needed)
-			    javafx.animation.PauseTransition cleanup = new javafx.animation.PauseTransition(javafx.util.Duration.millis(1500));
-			    
-			    cleanup.setOnFinished(event -> {
-			        getChildren().remove(currentDeathSprite);
-			        System.out.println("Cleaned up dead player sprite.");
-			    });
-			    
-			    cleanup.play();
+				// Add it to the screen
+				getChildren().add(currentDeathSprite);
+
+				// --- CLEANUP LOGIC ---
+				// Create a pause that lasts exactly as long as your GIF (adjust millis as needed)
+				javafx.animation.PauseTransition cleanup = new javafx.animation.PauseTransition(javafx.util.Duration.millis(1500));
+
+				cleanup.setOnFinished(event -> {
+					getChildren().remove(currentDeathSprite);
+					System.out.println("Cleaned up dead player sprite.");
+				});
+
+				cleanup.play();
 			});
 
 			activePlayers.remove(loserName);
@@ -443,41 +455,65 @@ public class MultiplayerGameBoard extends Pane {
 				}
 			});
 		}
-	}
-	
-	private void startIntermissionCountdown() {
-	    Platform.runLater(() -> {
-	        countdownText.setVisible(true);
-	        countdownText.toFront();
+		//		time sync
+		else if (msg.startsWith("TIME")) {
+			if (isHost) return; 
 
-	        // Sequence: 3... 2... 1... GO!
-	        javafx.animation.Timeline timeline = new javafx.animation.Timeline(
-	            new javafx.animation.KeyFrame(javafx.util.Duration.seconds(0), e -> countdownText.setText("3")),
-	            new javafx.animation.KeyFrame(javafx.util.Duration.seconds(1), e -> countdownText.setText("2")),
-	            new javafx.animation.KeyFrame(javafx.util.Duration.seconds(2), e -> countdownText.setText("1")),
-	            new javafx.animation.KeyFrame(javafx.util.Duration.seconds(3), e -> {
-	                countdownText.setVisible(false);
-	                resetRound();
-	            })
-	        );
-	        timeline.play();
-	    });
+			// Added .trim() to destroy invisible UDP garbage data!
+			long networkTime = Long.parseLong(msg.split(" ")[1].trim());
+
+			Platform.runLater(() -> {
+				timerText.setText("TIME: " + networkTime);
+
+				if (networkTime <= 5 && !fusePlayed && networkTime > 0) {
+					fuseSound.play();
+					fusePlayed = true;
+				}
+			});
+		}
+
+		// announced elimination
+		else if (msg.equals("ELIMINATE")) {
+			if (isHost) return; 
+
+			// If the Host says time is up, immediately trigger the explosion!
+			Platform.runLater(() -> triggerElimination(System.nanoTime()));
+		}
+	}
+
+	private void startIntermissionCountdown() {
+		Platform.runLater(() -> {
+			countdownText.setVisible(true);
+			countdownText.toFront();
+
+			// Sequence: 3... 2... 1... GO!
+			javafx.animation.Timeline timeline = new javafx.animation.Timeline(
+					new javafx.animation.KeyFrame(javafx.util.Duration.seconds(0), e -> countdownText.setText("3")),
+					new javafx.animation.KeyFrame(javafx.util.Duration.seconds(1), e -> countdownText.setText("2")),
+					new javafx.animation.KeyFrame(javafx.util.Duration.seconds(2), e -> countdownText.setText("1")),
+					new javafx.animation.KeyFrame(javafx.util.Duration.seconds(3), e -> {
+						countdownText.setVisible(false);
+						resetRound();
+					})
+					);
+			timeline.play();
+		});
 	}
 
 	private void resetRound() {
-	    // Deterministic bomb pass to survivors
-	    List<Player> survivors = new ArrayList<>(activePlayers.values());
-	    survivors.sort((p1, p2) -> p1.getNameTag().getText().compareTo(p2.getNameTag().getText()));
-	    
-	    // Reset bomb states
-	    activePlayers.values().forEach(p -> p.setBomb(false));
-	    survivors.get(0).setBomb(true);
+		// Deterministic bomb pass to survivors
+		List<Player> survivors = new ArrayList<>(activePlayers.values());
+		survivors.sort((p1, p2) -> p1.getNameTag().getText().compareTo(p2.getNameTag().getText()));
 
-	    // Restart timer and game loop
-	    roundStartTime = System.nanoTime();
-	    gameLoop.start();
+		// Reset bomb states
+		activePlayers.values().forEach(p -> p.setBomb(false));
+		survivors.get(0).setBomb(true);
+
+		// Restart timer and game loop
+		roundStartTime = System.nanoTime();
+		gameLoop.start();
 	}
-	
+
 	public void addKey(KeyCode code) { activeKeys.add(code); }
 	public void removeKey(KeyCode code) { activeKeys.remove(code); }
 	public void setClient(GameClient client) { this.gameClient = client; }

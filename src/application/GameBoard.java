@@ -67,12 +67,12 @@ public class GameBoard extends Pane {
 
 	//randomized bomb holder
 	boolean bombHolder = Math.random() < 0.5;
-	
+
 	//freeze (copy pasted)
 	private final Circle[] freezeTraps = new Circle[2];
 	private long p1FrozenUntil = 0;
 	private long p2FrozenUntil = 0;
-	
+
 	// powerup logic
 	private final List<PowerUp> activePowerUps = new ArrayList<>();
 	private long lastPowerUpSpawnTime = 0;
@@ -218,10 +218,10 @@ public class GameBoard extends Pane {
 		// THE GAME WORLD 
 		// group everything that should be hidden by the fog into one container
 		gameWorld = new Group();
-		
+
 		gameWorld.getChildren().add(mapBackground); 
 		gameWorld.getChildren().addAll(obstacles);
-		
+
 		for (int i = 0; i < 2; i++) {
 			freezeTraps[i] = new Circle(20, Color.CYAN);
 			freezeTraps[i].setStroke(Color.WHITE);
@@ -256,7 +256,7 @@ public class GameBoard extends Pane {
 
 		startGame();
 	}
-	
+
 	private void spawnTrap(Circle trap) {
 		boolean safe = false;
 		while (!safe) {
@@ -283,7 +283,7 @@ public class GameBoard extends Pane {
 		// 50/50 between SPEED and SHIELD
 		PowerUp.PowerUpType type = Math.random() < 0.5
 				? PowerUp.PowerUpType.SPEED
-				: PowerUp.PowerUpType.SHIELD;
+						: PowerUp.PowerUpType.SHIELD;
 
 		double x = 0, y = 0;
 		boolean safe = false;
@@ -293,7 +293,7 @@ public class GameBoard extends Pane {
 			y = Math.random() * (400  - 80) + 10;
 			Rectangle test = new Rectangle(x, y, 60, 60);
 			safe = !test.getBoundsInParent().intersects(player1.getBoundsInParent())
-				&& !test.getBoundsInParent().intersects(player2.getBoundsInParent());
+					&& !test.getBoundsInParent().intersects(player2.getBoundsInParent());
 			if (safe) {
 				for (Rectangle wall : obstacles) {
 					if (test.getBoundsInParent().intersects(wall.getBoundsInParent())) {
@@ -347,7 +347,7 @@ public class GameBoard extends Pane {
 				p1Vision.setCenterY(player1.getCenterY());
 				p2Vision.setCenterX(player2.getCenterX() - 30);
 				p2Vision.setCenterY(player2.getCenterY());
-				
+
 				//frozen
 				if (p1FrozenUntil > 0 && now >= p1FrozenUntil) {
 					player1.setFrozen(false);
@@ -394,30 +394,30 @@ public class GameBoard extends Pane {
 		}
 		// freeze
 		// PowerUp Spawning Logic
-				if (now - lastPowerUpSpawnTime > 5_000_000_000L && Math.random() < 0.05) {
-					for (Circle trap : freezeTraps) {
-						if (!trap.isVisible()) {
-							spawnTrap(trap);
-							lastPowerUpSpawnTime = now;
-							break;
-						}
-					}
+		if (now - lastPowerUpSpawnTime > 5_000_000_000L && Math.random() < 0.05) {
+			for (Circle trap : freezeTraps) {
+				if (!trap.isVisible()) {
+					spawnTrap(trap);
+					lastPowerUpSpawnTime = now;
+					break;
 				}
+			}
+		}
 
-				// PowerUp Collision Logic (freezes the player who touches it)
-				for (Circle trap : freezeTraps) {
-					if (trap.isVisible()) {
-						if (player1.getBoundsInParent().intersects(trap.getBoundsInParent())) {
-							trap.setVisible(false);
-							p1FrozenUntil = now + 5_000_000_000L; // 5 seconds
-							player1.setFrozen(true);
-						} else if (player2.getBoundsInParent().intersects(trap.getBoundsInParent())) {
-							trap.setVisible(false);
-							p2FrozenUntil = now + 5_000_000_000L; // 5 seconds
-							player2.setFrozen(true);
-						}
-					}
+		// PowerUp Collision Logic (freezes the player who touches it)
+		for (Circle trap : freezeTraps) {
+			if (trap.isVisible()) {
+				if (player1.getBoundsInParent().intersects(trap.getBoundsInParent())) {
+					trap.setVisible(false);
+					p1FrozenUntil = now + 5_000_000_000L; // 5 seconds
+					player1.setFrozen(true);
+				} else if (player2.getBoundsInParent().intersects(trap.getBoundsInParent())) {
+					trap.setVisible(false);
+					p2FrozenUntil = now + 5_000_000_000L; // 5 seconds
+					player2.setFrozen(true);
 				}
+			}
+		}
 
 		// --- Periodic power-up spawn ---
 		if (now - lastPowerUpSpawnTime > spawnIntervalNanos) {
@@ -438,8 +438,8 @@ public class GameBoard extends Pane {
 			gameWorld.getChildren().remove(pu.getSprite());
 
 			switch (pu.getType()) {
-				case SPEED  -> applySpeedBoost(collector, now);
-				case SHIELD -> collector.setShielded(true);
+			case SPEED  -> applySpeedBoost(collector, now);
+			case SHIELD -> collector.setShielded(true);
 			}
 		}
 		activePowerUps.removeIf(PowerUp::isCollected);
