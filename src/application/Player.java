@@ -17,6 +17,8 @@ import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.util.Duration;
+import javafx.geometry.Bounds;
+import javafx.geometry.BoundingBox;
 
 public class Player extends ImageView {
 
@@ -183,7 +185,7 @@ public class Player extends ImageView {
 		}
 
 		for (Rectangle wall : obstacles) {
-			if (this.getBoundsInParent().intersects(wall.getBoundsInParent())) {
+			if (this.getHitbox().intersects(wall.getBoundsInParent())) {
 				setX(oldX);
 				setY(oldY);
 				break; 
@@ -385,5 +387,17 @@ public class Player extends ImageView {
 		updateAppearance();
 		updateNameTagPosition();
 		updateShieldAuraPosition();
+	}
+	
+	public Bounds getHitbox() {
+		// This ignores all DropShadows and Effects!
+		// Bonus: We shrink it by a few pixels so you don't snag on wall corners as easily.
+		double padding = 10; 
+		return new BoundingBox(
+			getX() + padding, 
+			getY() + padding, 
+			size - (padding * 2), 
+			size - (padding * 2)
+		);
 	}
 }

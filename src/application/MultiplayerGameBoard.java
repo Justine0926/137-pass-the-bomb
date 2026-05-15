@@ -384,7 +384,7 @@ public class MultiplayerGameBoard extends Pane {
 					Player potentialReceiver = entry.getValue();
 
 					if (!potentialName.equals(holderName) && 
-							holder.getBoundsInParent().intersects(potentialReceiver.getBoundsInParent())) {
+							holder.getHitbox().intersects(potentialReceiver.getHitbox())) {
 
 						if (potentialReceiver.isShielded()) {
 							potentialReceiver.breakShield(); 
@@ -406,7 +406,6 @@ public class MultiplayerGameBoard extends Pane {
 			}
 		}
 
-		// 3. HOST SPAWNS POWERUPS
 		// 3. HOST SPAWNS POWERUPS
 		if (now - lastPowerUpSpawnTime > spawnIntervalNanos) {
 
@@ -445,7 +444,7 @@ public class MultiplayerGameBoard extends Pane {
 
 			// A. Did this player hit a Trap?
 			for (int i = 0; i < freezeTraps.length; i++) {
-				if (freezeTraps[i].isVisible() && p.getBoundsInParent().intersects(freezeTraps[i].getBoundsInParent())) {
+				if (freezeTraps[i].isVisible() && p.getHitbox().intersects(freezeTraps[i].getBoundsInParent())) {
 					gameClient.send("APPLY_FREEZE " + i + " " + pName);
 					freezeTraps[i].setVisible(false); 
 
@@ -459,7 +458,7 @@ public class MultiplayerGameBoard extends Pane {
 				PowerUp pu = puEntry.getValue();
 
 				// Check intersection
-				if (!pu.isCollected() && p.getBoundsInParent().intersects(pu.getBounds())) {
+				if (!pu.isCollected() && p.getHitbox().intersects(pu.getBounds())) {
 
 					// Tell all clients to apply the effect and delete the visual sprite
 					gameClient.send("APPLY_POWERUP " + puEntry.getKey() + " " + pu.getType().toString() + " " + pName);
@@ -511,6 +510,7 @@ public class MultiplayerGameBoard extends Pane {
 
 				finalLoser.setVisible(false);
 				finalLoser.getNameTag().setVisible(false);
+				finalLoser.setShielded(false);
 
 				if (finalLoser == localPlayer && fogOverlay != null) {
 					fogOverlay.setVisible(false); 

@@ -377,7 +377,7 @@ public class GameBoard extends Pane {
 	//  collision checker
 	private void checkCollision(long now) {
 		// --- Bomb pass with shield handling ---
-		if (player1.getBoundsInParent().intersects(player2.getBoundsInParent())
+		if (player1.getHitbox().intersects(player2.getHitbox())
 				&& now - bombLastPassedTime > cooldownNanos) {
 
 			Player holder   = player1.hasBomb() ? player1 : player2;
@@ -407,11 +407,11 @@ public class GameBoard extends Pane {
 		// PowerUp Collision Logic (freezes the player who touches it)
 		for (Circle trap : freezeTraps) {
 			if (trap.isVisible()) {
-				if (player1.getBoundsInParent().intersects(trap.getBoundsInParent())) {
+				if (player1.getHitbox().intersects(trap.getBoundsInParent())) {
 					trap.setVisible(false);
 					p1FrozenUntil = now + 5_000_000_000L; // 5 seconds
 					player1.setFrozen(true);
-				} else if (player2.getBoundsInParent().intersects(trap.getBoundsInParent())) {
+				} else if (player2.getHitbox().intersects(trap.getBoundsInParent())) {
 					trap.setVisible(false);
 					p2FrozenUntil = now + 5_000_000_000L; // 5 seconds
 					player2.setFrozen(true);
@@ -430,8 +430,8 @@ public class GameBoard extends Pane {
 			if (pu.isCollected()) continue;
 
 			Player collector = null;
-			if (player1.getBoundsInParent().intersects(pu.getBounds()))      collector = player1;
-			else if (player2.getBoundsInParent().intersects(pu.getBounds())) collector = player2;
+			if (player1.getHitbox().intersects(pu.getBounds()))      collector = player1;
+			else if (player2.getHitbox().intersects(pu.getBounds())) collector = player2;
 			if (collector == null) continue;
 
 			pu.collect();
