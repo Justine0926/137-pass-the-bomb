@@ -42,6 +42,7 @@ public class GameClient {
 		if (!isRunning || socket == null) return;
 
 		try {
+			System.out.println("CLIENT SENDING: " + message);
 			byte[] buffer = message.getBytes();
 			DatagramPacket packet = new DatagramPacket(buffer, buffer.length, serverAddress, 4444); 
 			socket.send(packet);
@@ -50,7 +51,7 @@ public class GameClient {
 		}
 	}
 
-	private void startListening() {
+	public void startListening() {
 		listenThread = new Thread(() -> {
 			byte[] buffer = new byte[512];
 

@@ -24,6 +24,9 @@ public class Main extends Application {
 
 	private MediaPlayer bgMusic; // added for background music
 
+	private GameServer activeServer;
+	private GameClient activeClient;
+
 	@Override
 	public void start(Stage primaryStage) {
 		window = primaryStage;
@@ -45,6 +48,14 @@ public class Main extends Application {
 
 	// method to create and display the Menu Scene
 	public void showMainMenu() {
+		if (activeServer != null) {
+			activeServer.stop();
+			activeServer = null;
+		}
+		if (activeClient != null) {
+			activeClient.disconnect();
+			activeClient = null;
+		}
 		// create the menu and tell it what methods to run when buttons are clicked
 		MainMenu menuLayout = new MainMenu(this::startGame,this::showMultiplayerMenu, () -> window.close());
 		Scene menuScene = new Scene(menuLayout, WIDTH, HEIGHT);
@@ -57,23 +68,20 @@ public class Main extends Application {
 		MultiplayerMenu mpMenu = new MultiplayerMenu(
 				this::showMainMenu,
 
-				// HOST BUTTON (Now provides the Player Count and the Host's Name)
+				// HOST BUTTON
 				(Integer maxPlayers, String hostName) -> { 
 					System.out.println("Starting Server for " + maxPlayers + " players...");
 
-					// Pass the requested size into the server!
-					GameServer localServer = new GameServer(maxPlayers);
-					localServer.start();
+					// Use the GLOBAL variable!
+					activeServer = new GameServer(maxPlayers);
+					activeServer.start();
 
-					// Join the lobby with our custom name!
 					joinLobby("localhost", true, hostName); 
 				},
 
-				// JOIN BUTTON (Now provides the IP and the Joiner's Name)
+				// JOIN BUTTON
 				(String targetIp, String joinerName) -> { 
 					System.out.println("Connecting to IP: " + targetIp + " as " + joinerName);
-
-					// Join the lobby with our custom name!
 					joinLobby(targetIp, false, joinerName); 
 				}
 				);
@@ -82,11 +90,8 @@ public class Main extends Application {
 	}
 
 	public void joinLobby(String ipAddress, boolean isHost, String myName) {
-		// 1. Declare the variable at the top level of the method
-		// We use an array trick or a class field if we need to access it inside the lambda
-		final GameClient[] clientWrapper = new GameClient[1]; 
 
-		// 2. Show waiting screen...
+		// Show waiting screen...
 		Text waitingText = new Text("WAITING FOR PLAYERS...");
 		waitingText.setFont(Font.font("Monospaced", FontWeight.BOLD, 40));
 		waitingText.setFill(Color.rgb(232, 224, 192));
@@ -95,7 +100,6 @@ public class Main extends Application {
 		root.setAlignment(Pos.CENTER);
 		root.setStyle("-fx-background-color: #111;");
 
-		// Let's add a little detail so you know it's working
 		Text subText = new Text("Connected as: " + myName);
 		subText.setFont(Font.font("Monospaced", 18));
 		subText.setFill(Color.GRAY);
@@ -104,19 +108,20 @@ public class Main extends Application {
 
 		Scene lobbyScene = new Scene(root, WIDTH, HEIGHT);
 		window.setScene(lobbyScene);
-		// 3. Initialize the client
-		clientWrapper[0] = new GameClient(ipAddress, myName, msg -> {
+
+		// --- USE THE GLOBAL CLIENT ---
+		activeClient = new GameClient(ipAddress, myName, msg -> {
 			if (msg.startsWith("START")) {
 				String roster = msg.substring(6).trim();
 				List<String> allPlayers = Arrays.asList(roster.split(","));
 
 				Platform.runLater(() -> {
+					// We pass the global activeClient to the board
 					MultiplayerGameBoard gameLayout = new MultiplayerGameBoard(
-							this::showMainMenu, clientWrapper[0], myName, allPlayers, isHost
+							this::showMainMenu, activeClient, myName, allPlayers, isHost
 							);
 
-					// Now this is safe because clientWrapper[0] is definitely assigned
-					clientWrapper[0].setOnMessageReceived(gameLayout::processNetworkMessage);
+					activeClient.setOnMessageReceived(gameLayout::processNetworkMessage);
 
 					Scene gameScene = new Scene(gameLayout, WIDTH, HEIGHT);
 					gameScene.setOnKeyPressed(event -> gameLayout.addKey(event.getCode()));
@@ -125,6 +130,9 @@ public class Main extends Application {
 				});
 			}
 		});
+
+		// Don't forget to start the client thread after creating it!
+		activeClient.startListening(); 
 	}
 
 
@@ -142,6 +150,14 @@ public class Main extends Application {
 	}
 
 
+
+	@Override
+	public void stop() throws Exception {
+		System.out.println("Window closed. Shutting down network threads...");
+
+		// The absolute nuclear option to guarantee all rogue threads and sockets die:
+		System.exit(0); 
+	}
 
 	public static void main(String[] args) {
 		launch(args);

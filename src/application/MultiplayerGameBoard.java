@@ -52,7 +52,7 @@ public class MultiplayerGameBoard extends Pane {
 	private AnimationTimer gameLoop;
 	//	private ImageView deathGif;
 
-	private final long roundDurationNanos = 30_000_000_000L; 
+	private final long roundDurationNanos = 5_000_000_000L; 
 	private final long cooldownNanos = 1_000_000_000L;
 	private long bombLastPassedTime = 0;
 	private long roundStartTime = -1; 
@@ -122,7 +122,15 @@ public class MultiplayerGameBoard extends Pane {
 		returnButton.setEffect(buttonShadow);
 		returnButton.setOnMouseEntered(e -> returnButton.setStyle("-fx-background-color: transparent; -fx-text-fill: rgb(232, 224, 192); -fx-cursor: hand;"));
 		returnButton.setOnMouseExited(e -> returnButton.setStyle("-fx-background-color: transparent; -fx-text-fill: rgb(144, 140, 128); -fx-cursor: hand;"));
-		returnButton.setOnAction(e -> onMenuReturn.run());
+		returnButton.setOnAction(e -> {
+		    // shut down the client socket so it stops listening
+		    if (gameClient != null) {
+		        gameClient.disconnect(); // Make sure your GameClient has a stop() method that calls socket.close()
+		    }
+		    
+		    //return to the main menu
+		    onMenuReturn.run(); 
+		});
 
 		// --- ARENA ---
 		Image mapImage = new Image(getClass().getResource("/screens/arena.png").toExternalForm());

@@ -18,7 +18,13 @@ public class GameServer {
 	public GameServer(int maxPlayers) {
 		this.maxPlayers = maxPlayers;
 		try {
-			socket = new DatagramSocket(PORT);
+			socket = new DatagramSocket(null); 
+
+			// tell the OS to forcefully reuse this port even if it thinks it's busy
+			socket.setReuseAddress(true); 
+
+			// bind it to the port
+			socket.bind(new java.net.InetSocketAddress(PORT));
 			System.out.println("Pass The Bomb Server started on port " + PORT + " for " + maxPlayers + " players.");
 		} catch (Exception e) {
 			System.err.println("Could not bind to port " + PORT);
@@ -71,6 +77,7 @@ public class GameServer {
 	}
 
 	private void processIncomingMessage(String message, InetAddress address, int port) {
+		System.out.println("SERVER HEARD: " + message);
 		// 1. Handle New Connections
 		if (message.startsWith("CONNECT")) {
 			String playerName = message.split(" ")[1];
