@@ -232,8 +232,8 @@ public class MultiplayerGameBoard extends Pane {
 			gameWorld.getChildren().addAll(p, p.getNameTag());
 		}
 
-		fuseSound = new AudioClip(getClass().getResource("/music/fuse_music.wav").toExternalForm());
-		explosionSound = new AudioClip(getClass().getResource("/music/explosion_music.wav").toExternalForm());
+		fuseSound = new AudioClip(getClass().getResource("/music/fuse_music.mp3").toExternalForm());
+		explosionSound = new AudioClip(getClass().getResource("/music/explosion_music.mp3").toExternalForm());
 		explosionSound.setVolume(1.0);
 		// --- STACK THE LAYERS ---
 		// 1. GameWorld (Map + Obstacles + Players)

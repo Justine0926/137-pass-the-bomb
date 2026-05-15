@@ -67,7 +67,12 @@ public class GameBoard extends Pane {
 
 	//randomized bomb holder
 	boolean bombHolder = Math.random() < 0.5;
-
+	
+	//freeze (copy pasted)
+	private final Circle[] freezeTraps = new Circle[2];
+	private long p1FrozenUntil = 0;
+	private long p2FrozenUntil = 0;
+	
 	// powerup logic
 	private final List<PowerUp> activePowerUps = new ArrayList<>();
 	private long lastPowerUpSpawnTime = 0;
@@ -216,6 +221,14 @@ public class GameBoard extends Pane {
 		
 		gameWorld.getChildren().add(mapBackground); 
 		gameWorld.getChildren().addAll(obstacles);
+		
+		for (int i = 0; i < 2; i++) {
+			freezeTraps[i] = new Circle(20, Color.CYAN);
+			freezeTraps[i].setStroke(Color.WHITE);
+			freezeTraps[i].setStrokeWidth(3);
+			spawnTrap(freezeTraps[i]);
+			gameWorld.getChildren().add(freezeTraps[i]);
+		}
 
 		gameWorld.getChildren().addAll(player1, player2);
 		gameWorld.getChildren().addAll(player1.getShieldAura(), player2.getShieldAura());
@@ -242,6 +255,24 @@ public class GameBoard extends Pane {
 		this.getChildren().addAll(fogBackground, maskedWorld, timerText, gameOverText, returnButton);
 
 		startGame();
+	}
+	
+	private void spawnTrap(Circle trap) {
+		boolean safe = false;
+		while (!safe) {
+			double px = Math.random() * (660 - 40) + 20;
+			double py = Math.random() * (360 - 40) + 20;
+			trap.setCenterX(px);
+			trap.setCenterY(py);
+			safe = true;
+			for (Rectangle wall : obstacles) {
+				if (trap.getBoundsInParent().intersects(wall.getBoundsInParent())) {
+					safe = false;
+					break;
+				}
+			}
+		}
+		trap.setVisible(true);
 	}
 
 	private void spawnPowerUp() {
@@ -316,6 +347,16 @@ public class GameBoard extends Pane {
 				p1Vision.setCenterY(player1.getCenterY());
 				p2Vision.setCenterX(player2.getCenterX() - 30);
 				p2Vision.setCenterY(player2.getCenterY());
+				
+				//frozen
+				if (p1FrozenUntil > 0 && now >= p1FrozenUntil) {
+					player1.setFrozen(false);
+					p1FrozenUntil = 0;
+				}
+				if (p2FrozenUntil > 0 && now >= p2FrozenUntil) {
+					player2.setFrozen(false);
+					p2FrozenUntil = 0;
+				}
 
 				// speed-boost expiry per player
 				if (p1SpeedBoostEnd > 0 && now >= p1SpeedBoostEnd) {
@@ -351,6 +392,32 @@ public class GameBoard extends Pane {
 			}
 			bombLastPassedTime = now;
 		}
+		// freeze
+		// PowerUp Spawning Logic
+				if (now - lastPowerUpSpawnTime > 5_000_000_000L && Math.random() < 0.05) {
+					for (Circle trap : freezeTraps) {
+						if (!trap.isVisible()) {
+							spawnTrap(trap);
+							lastPowerUpSpawnTime = now;
+							break;
+						}
+					}
+				}
+
+				// PowerUp Collision Logic (freezes the player who touches it)
+				for (Circle trap : freezeTraps) {
+					if (trap.isVisible()) {
+						if (player1.getBoundsInParent().intersects(trap.getBoundsInParent())) {
+							trap.setVisible(false);
+							p1FrozenUntil = now + 5_000_000_000L; // 5 seconds
+							player1.setFrozen(true);
+						} else if (player2.getBoundsInParent().intersects(trap.getBoundsInParent())) {
+							trap.setVisible(false);
+							p2FrozenUntil = now + 5_000_000_000L; // 5 seconds
+							player2.setFrozen(true);
+						}
+					}
+				}
 
 		// --- Periodic power-up spawn ---
 		if (now - lastPowerUpSpawnTime > spawnIntervalNanos) {

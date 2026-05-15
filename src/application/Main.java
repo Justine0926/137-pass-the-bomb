@@ -31,7 +31,7 @@ public class Main extends Application {
 		window.setResizable(false);
 
 		// background music
-		Media sound = new Media(getClass().getResource("/music/bg_music.wav").toExternalForm());
+		Media sound = new Media(getClass().getResource("/music/bg_music.mp3").toExternalForm());
 		bgMusic = new MediaPlayer(sound);
 		bgMusic.setCycleCount(MediaPlayer.INDEFINITE); // loop forever
 		bgMusic.setVolume(0.5); // volume 0.0 to 1.0
