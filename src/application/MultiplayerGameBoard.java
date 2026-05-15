@@ -50,7 +50,7 @@ public class MultiplayerGameBoard extends Pane {
 	private AnimationTimer gameLoop;
 //	private ImageView deathGif;
 
-	private final long roundDurationNanos = 5_000_000_000L; 
+	private final long roundDurationNanos = 30_000_000_000L; 
 	private final long cooldownNanos = 1_000_000_000L;
 	private long bombLastPassedTime = 0;
 	private long roundStartTime = -1; 
@@ -81,7 +81,7 @@ public class MultiplayerGameBoard extends Pane {
 		timerText.setEffect(timerShadow);
 
 		// --- COUNTDOWN TEXT ---
-		countdownText = new Text(325, 220, "");
+		countdownText = new Text(350, 220, "");
 		countdownText.setFont(Font.font("Monospaced", FontWeight.BOLD, 80));
 		countdownText.setFill(Color.rgb(0xFF, 0x45, 0x00)); // Orange-Red
 		countdownText.setStroke(Color.BLACK);
