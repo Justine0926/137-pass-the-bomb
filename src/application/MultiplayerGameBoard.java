@@ -279,6 +279,19 @@ public class MultiplayerGameBoard extends Pane {
 							fusePlayed = true;
 						}
 					}
+					
+					// --- NEW: HOST FOG SYNC ---
+					// Dynamically calculate elapsed time so it works even if you change round duration later!
+					long totalRoundSeconds = roundDurationNanos / 1_000_000_000L;
+					long elapsedSeconds = totalRoundSeconds - timeRemaining;
+					
+					// A 13-second cycle (10 seconds ON, 3 seconds OFF)
+					long cycle = elapsedSeconds % 13; 
+					boolean shouldFogBeOn = (cycle < 10);
+					
+					if (fogOverlay != null && activePlayers.containsKey(myName)) {
+						fogOverlay.setVisible(shouldFogBeOn);
+					}
 				}
 
 				// 2. PLAYER MOVEMENT (Both Host and Clients still do this!)
@@ -468,6 +481,17 @@ public class MultiplayerGameBoard extends Pane {
 				if (networkTime <= 5 && !fusePlayed && networkTime > 0) {
 					fuseSound.play();
 					fusePlayed = true;
+				}
+				// --- NEW: CLIENT FOG SYNC ---
+				long totalRoundSeconds = roundDurationNanos / 1_000_000_000L;
+				long elapsedSeconds = totalRoundSeconds - networkTime;
+				
+				// A 13-second cycle (10 seconds ON, 3 seconds OFF)
+				long cycle = elapsedSeconds % 13; 
+				boolean shouldFogBeOn = (cycle < 10);
+				
+				if (fogOverlay != null && activePlayers.containsKey(myName)) {
+					fogOverlay.setVisible(shouldFogBeOn);
 				}
 			});
 		}
