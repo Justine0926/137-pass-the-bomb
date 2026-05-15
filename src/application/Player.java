@@ -384,5 +384,6 @@ public class Player extends ImageView {
 		// 4. Force the image and nametag to visually update!
 		updateAppearance();
 		updateNameTagPosition();
+		updateShieldAuraPosition();
 	}
 }

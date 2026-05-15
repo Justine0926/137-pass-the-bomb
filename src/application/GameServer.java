@@ -105,7 +105,11 @@ public class GameServer {
 		else if (message.startsWith("PLAYER") || 
 				message.startsWith("BOMB_PASS") || 
 				message.startsWith("TIME") || 
-				message.equals("ELIMINATE")) {
+				message.equals("ELIMINATE")||
+				message.startsWith("SPAWN") ||
+				message.startsWith("APPLY") ||
+				message.startsWith("REMOVE")||
+				message.startsWith("BREAK_SHIELD")) {
 
 			broadcast(message);
 		}

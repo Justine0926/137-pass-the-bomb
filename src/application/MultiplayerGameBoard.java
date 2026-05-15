@@ -63,6 +63,18 @@ public class MultiplayerGameBoard extends Pane {
 
 	private final List<Rectangle> obstacles = new ArrayList<>();
 	private boolean isHost;
+	// --- POWERUPS & TRAPS ---
+	private final Map<String, PowerUp> networkPowerUps = new HashMap<>();
+	private long lastPowerUpSpawnTime = 0;
+	private final long spawnIntervalNanos = 7_000_000_000L;
+	private final int maxActivePowerUps = 2;
+	private long lastTrapSpawnTime = 0;
+	private final long trapSpawnIntervalNanos = 5_000_000_000L;
+
+	private final Circle[] freezeTraps = new Circle[2];
+	// Add these to the top of your class to track the Host's exact nanosecond timers
+	private final Map<String, Long> hostFreezeTimers = new HashMap<>();
+	private final Map<String, Long> hostSpeedTimers = new HashMap<>();
 
 
 
@@ -229,9 +241,17 @@ public class MultiplayerGameBoard extends Pane {
 		}
 
 		gameWorld.getChildren().addAll(obstacles);
-
 		for (Player p : activePlayers.values()) {
-			gameWorld.getChildren().addAll(p, p.getNameTag());
+			// Added p.getShieldAura() to the scene graph!
+			gameWorld.getChildren().addAll(p, p.getShieldAura(), p.getNameTag());
+		}
+
+		for (int i = 0; i < 2; i++) {
+			freezeTraps[i] = new Circle(20, Color.CYAN);
+			freezeTraps[i].setStroke(Color.WHITE);
+			freezeTraps[i].setStrokeWidth(3);
+			freezeTraps[i].setVisible(false); // Hidden until Host spawns them
+			gameWorld.getChildren().add(freezeTraps[i]);
 		}
 
 		fuseSound = new AudioClip(getClass().getResource("/music/fuse_music.mp3").toExternalForm());
@@ -279,16 +299,16 @@ public class MultiplayerGameBoard extends Pane {
 							fusePlayed = true;
 						}
 					}
-					
+
 					// --- NEW: HOST FOG SYNC ---
 					// Dynamically calculate elapsed time so it works even if you change round duration later!
 					long totalRoundSeconds = roundDurationNanos / 1_000_000_000L;
 					long elapsedSeconds = totalRoundSeconds - timeRemaining;
-					
+
 					// A 13-second cycle (10 seconds ON, 3 seconds OFF)
 					long cycle = elapsedSeconds % 13; 
 					boolean shouldFogBeOn = (cycle < 10);
-					
+
 					if (fogOverlay != null && activePlayers.containsKey(myName)) {
 						fogOverlay.setVisible(shouldFogBeOn);
 					}
@@ -328,6 +348,24 @@ public class MultiplayerGameBoard extends Pane {
 	private void checkCollision(long now) {
 		if (!isHost) return; 
 
+		// 1. HOST REMOVES EXPIRED BUFFS
+		hostFreezeTimers.entrySet().removeIf(entry -> {
+			if (now >= entry.getValue()) {
+				gameClient.send("REMOVE_FREEZE " + entry.getKey());
+				return true; 
+			}
+			return false;
+		});
+
+		hostSpeedTimers.entrySet().removeIf(entry -> {
+			if (now >= entry.getValue()) {
+				gameClient.send("REMOVE_SPEED " + entry.getKey());
+				return true;
+			}
+			return false;
+		});
+
+		// 2. BOMB PASSING
 		if (now - bombLastPassedTime > cooldownNanos) {
 			Player holder = null;
 			String holderName = "";
@@ -348,9 +386,88 @@ public class MultiplayerGameBoard extends Pane {
 					if (!potentialName.equals(holderName) && 
 							holder.getBoundsInParent().intersects(potentialReceiver.getBoundsInParent())) {
 
-						bombLastPassedTime = now; 
-						gameClient.send("BOMB_PASS " + potentialName);
-						break;
+						if (potentialReceiver.isShielded()) {
+							potentialReceiver.breakShield(); 
+							gameClient.send("BREAK_SHIELD " + potentialName); 
+
+							// FIX: Trigger the cooldown so the bomb doesn't pass on the very next frame!
+							bombLastPassedTime = now; 
+							break; 
+						}
+						else {
+							gameClient.send("BOMB_PASS " + potentialName);
+
+							// Trigger the cooldown for a normal pass
+							bombLastPassedTime = now; 
+							break;
+						}
+					}
+				}
+			}
+		}
+
+		// 3. HOST SPAWNS POWERUPS
+		// 3. HOST SPAWNS POWERUPS
+		if (now - lastPowerUpSpawnTime > spawnIntervalNanos) {
+
+			// Try to spawn a PowerUp if we aren't at the max limit
+			if (networkPowerUps.size() < maxActivePowerUps) {
+				String type = Math.random() < 0.5 ? "SPEED" : "SHIELD";
+
+				double px = Math.random() * (700 - 80) + 10;
+				double py = Math.random() * (400 - 80) + 10;
+				String puID = "PU_" + now; 
+
+				gameClient.send("SPAWN_POWERUP " + puID + " " + type + " " + px + " " + py);
+			}
+			lastPowerUpSpawnTime = now;
+		}
+
+		// --- NEW: HOST SPAWNS TRAPS ---
+		if (now - lastTrapSpawnTime > trapSpawnIntervalNanos) { 
+			for (int i = 0; i < freezeTraps.length; i++) {
+				if (!freezeTraps[i].isVisible()) {
+					double tx = Math.random() * (660 - 40) + 20;
+					double ty = Math.random() * (360 - 40) + 20;
+					gameClient.send("SPAWN_TRAP " + i + " " + tx + " " + ty);
+
+					// Break so we only spawn ONE trap every 5 seconds, not both at the same time!
+					break; 
+				}
+			}
+			lastTrapSpawnTime = now;
+		}
+
+		// 4. HOST DETECTS ITEM PICKUPS
+		for (Map.Entry<String, Player> entry : activePlayers.entrySet()) {
+			String pName = entry.getKey();
+			Player p = entry.getValue();
+
+			// A. Did this player hit a Trap?
+			for (int i = 0; i < freezeTraps.length; i++) {
+				if (freezeTraps[i].isVisible() && p.getBoundsInParent().intersects(freezeTraps[i].getBoundsInParent())) {
+					gameClient.send("APPLY_FREEZE " + i + " " + pName);
+					freezeTraps[i].setVisible(false); 
+
+					// Record the exact nano-time it should end (5 seconds from now)
+					hostFreezeTimers.put(pName, now + 5_000_000_000L);
+				}
+			}
+
+			// B. Did this player hit a PowerUp?
+			for (Map.Entry<String, PowerUp> puEntry : networkPowerUps.entrySet()) {
+				PowerUp pu = puEntry.getValue();
+
+				// Check intersection
+				if (!pu.isCollected() && p.getBoundsInParent().intersects(pu.getBounds())) {
+
+					// Tell all clients to apply the effect and delete the visual sprite
+					gameClient.send("APPLY_POWERUP " + puEntry.getKey() + " " + pu.getType().toString() + " " + pName);
+					pu.collect(); // Mark it collected so the Host doesn't spam this packet 60 times a second
+
+					// If it's a speed boost, the Host MUST track the 4-second timer
+					if (pu.getType() == PowerUp.PowerUpType.SPEED) {
+						hostSpeedTimers.put(pName, now + 4_000_000_000L);
 					}
 				}
 			}
@@ -485,11 +602,11 @@ public class MultiplayerGameBoard extends Pane {
 				// --- NEW: CLIENT FOG SYNC ---
 				long totalRoundSeconds = roundDurationNanos / 1_000_000_000L;
 				long elapsedSeconds = totalRoundSeconds - networkTime;
-				
+
 				// A 13-second cycle (10 seconds ON, 3 seconds OFF)
 				long cycle = elapsedSeconds % 13; 
 				boolean shouldFogBeOn = (cycle < 10);
-				
+
 				if (fogOverlay != null && activePlayers.containsKey(myName)) {
 					fogOverlay.setVisible(shouldFogBeOn);
 				}
@@ -502,6 +619,104 @@ public class MultiplayerGameBoard extends Pane {
 
 			// If the Host says time is up, immediately trigger the explosion!
 			Platform.runLater(() -> triggerElimination(System.nanoTime()));
+		}
+		// --- ITEM SPAWNING ---
+		else if (msg.startsWith("SPAWN_POWERUP")) {
+			String[] tokens = msg.split(" ");
+			String puID = tokens[1];
+			PowerUp.PowerUpType type = PowerUp.PowerUpType.valueOf(tokens[2]);
+			double px = Double.parseDouble(tokens[3]);
+			double py = Double.parseDouble(tokens[4]);
+
+			Platform.runLater(() -> {
+				PowerUp pu = new PowerUp(type, px, py);
+				networkPowerUps.put(puID, pu);
+				gameWorld.getChildren().add(pu.getSprite());
+			});
+		}
+		else if (msg.startsWith("SPAWN_TRAP")) {
+			String[] tokens = msg.split(" ");
+			int trapIndex = Integer.parseInt(tokens[1]);
+			double tx = Double.parseDouble(tokens[2]);
+			double ty = Double.parseDouble(tokens[3]);
+
+			Platform.runLater(() -> {
+				freezeTraps[trapIndex].setCenterX(tx);
+				freezeTraps[trapIndex].setCenterY(ty);
+				freezeTraps[trapIndex].setVisible(true);
+			});
+		}
+
+		// --- APPLYING EFFECTS ---
+		else if (msg.startsWith("APPLY_POWERUP")) {
+			String[] tokens = msg.split(" ");
+			String puID = tokens[1];
+			String typeStr = tokens[2];
+			String targetPlayerName = tokens[3];
+
+			Platform.runLater(() -> {
+				// Remove visual powerup from the board
+				if (networkPowerUps.containsKey(puID)) {
+					PowerUp pu = networkPowerUps.remove(puID);
+					gameWorld.getChildren().remove(pu.getSprite());
+				}
+
+				// Apply the buff
+				if (activePlayers.containsKey(targetPlayerName)) {
+					Player target = activePlayers.get(targetPlayerName);
+
+					if (typeStr.equals("SPEED")) {
+						// STRICT HOST-AUTHORITY: Turn it on forever (until the Host says stop!)
+						target.applySpeedBoost(1.8); 
+					} else if (typeStr.equals("SHIELD")) {
+						target.setShielded(true);
+					}
+				}
+			});
+		}
+
+		// --- NEW: LISTEN FOR HOST REMOVING SPEED ---
+		else if (msg.startsWith("REMOVE_SPEED")) {
+			String targetPlayerName = msg.split(" ")[1];
+
+			Platform.runLater(() -> {
+				if (activePlayers.containsKey(targetPlayerName)) {
+					// The Host said time is up! Remove the speed boost.
+					activePlayers.get(targetPlayerName).resetSpeed();
+				}
+			});
+		}
+		// --- STRICT SERVER-AUTHORITATIVE EFFECTS ---
+		else if (msg.startsWith("APPLY_FREEZE")) {
+			String[] tokens = msg.split(" ");
+			int trapIndex = Integer.parseInt(tokens[1]);
+			String targetPlayerName = tokens[2];
+
+			Platform.runLater(() -> {
+				freezeTraps[trapIndex].setVisible(false); 
+				if (activePlayers.containsKey(targetPlayerName)) {
+					// Turn it ON and leave it on forever (until the Host says otherwise)
+					activePlayers.get(targetPlayerName).setFrozen(true);
+				}
+			});
+		}
+		else if (msg.startsWith("REMOVE_FREEZE")) {
+			String targetPlayerName = msg.split(" ")[1];
+
+			Platform.runLater(() -> {
+				if (activePlayers.containsKey(targetPlayerName)) {
+					// The Host said time is up! Unfreeze them.
+					activePlayers.get(targetPlayerName).setFrozen(false);
+				}
+			});
+		}
+		else if (msg.startsWith("BREAK_SHIELD")) {
+			String targetPlayerName = msg.split(" ")[1];
+			Platform.runLater(() -> {
+				if (activePlayers.containsKey(targetPlayerName)) {
+					activePlayers.get(targetPlayerName).breakShield();
+				}
+			});
 		}
 	}
 
