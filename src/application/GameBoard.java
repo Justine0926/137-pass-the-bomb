@@ -45,7 +45,7 @@ public class GameBoard extends Pane {
 	private AnimationTimer gameLoop;
 	private ImageView deathGif;
 
-	private final long gameDurationNanos = 5_000_000_000L;
+	private final long gameDurationNanos = 90_000_000_000L;
 	private final long cooldownNanos = 1_000_000_000L;
 	private long bombLastPassedTime = 0;
 
@@ -55,6 +55,9 @@ public class GameBoard extends Pane {
 	private final Circle p2Vision;
 
 	//sound
+	// TEMP: disabled until JavaFX media playback is restored on Fedora 43.
+	// Flip AUDIO_ENABLED to re-enable.
+	private static final boolean AUDIO_ENABLED = false;
 	private AudioClip fuseSound;
 	private AudioClip explosionSound;
 	private boolean fusePlayed = false;
@@ -65,6 +68,17 @@ public class GameBoard extends Pane {
 	//randomized bomb holder
 	boolean bombHolder = Math.random() < 0.5;
 
+	// powerup logic
+	private final List<PowerUp> activePowerUps = new ArrayList<>();
+	private long lastPowerUpSpawnTime = 0;
+	private final long spawnIntervalNanos = 7_000_000_000L; // ~7 seconds between spawns
+	private final int  maxActivePowerUps  = 2;
+
+	// speed boost tracking (per player)
+	private long p1SpeedBoostEnd = 0;
+	private long p2SpeedBoostEnd = 0;
+	private final long speedBoostDurationNanos = 4_000_000_000L; // 4 seconds
+
 	// we now pass a Runnable so the board knows how to go back to the menu
 	public GameBoard(Runnable onMenuReturn) {
 		player1 = new Player(200, 200, 
@@ -74,7 +88,7 @@ public class GameBoard extends Pane {
 				KeyCode.UP, KeyCode.DOWN, KeyCode.LEFT, KeyCode.RIGHT, !bombHolder, "PLAYER 2");
 
 		// --- TIMER TEXT ---
-		timerText = new Text(300, 50, "TIME: 60");
+		timerText = new Text(300, 50, "TIME: 90");
 		timerText.setFont(Font.font("Monospaced", FontWeight.BOLD, 30));
 		timerText.setFill(Color.rgb(0xE8, 0xE0, 0xC0)); // MainMenu ACCENT color
 		timerText.setStroke(Color.rgb(0x08, 0x08, 0x08)); // MainMenu BLACK
@@ -95,8 +109,8 @@ public class GameBoard extends Pane {
 		gameOverText.setStrokeWidth(1); // Slightly thicker outline for bigger text
 
 		DropShadow gameOverShadow = new DropShadow();
-		gameOverShadow.setOffsetY(2);
-		gameOverShadow.setOffsetX(2);
+		gameOverShadow.setOffsetY(6);
+		gameOverShadow.setOffsetX(6);
 		gameOverShadow.setColor(Color.color(0, 0, 0, 0.8));
 		gameOverShadow.setRadius(0);
 		gameOverText.setEffect(gameOverShadow);
@@ -199,18 +213,25 @@ public class GameBoard extends Pane {
 		// THE GAME WORLD 
 		// group everything that should be hidden by the fog into one container
 		gameWorld = new Group();
+		
 		gameWorld.getChildren().add(mapBackground); 
 		gameWorld.getChildren().addAll(obstacles);
+
 		gameWorld.getChildren().addAll(player1, player2);
+		gameWorld.getChildren().addAll(player1.getShieldAura(), player2.getShieldAura());
 		gameWorld.getChildren().addAll(player1.getNameTag(), player2.getNameTag());
+
+		// spawn one initial power-up so the board isn't empty
+		spawnPowerUp();
 		// inside the white pixels of the visionMask!
 		gameWorld.setBlendMode(BlendMode.SRC_ATOP);
 
 		//sound
-		fuseSound = new AudioClip(getClass().getResource("/music/fuse_music.wav").toExternalForm());
-		explosionSound = new AudioClip(getClass().getResource("/music/explosion_music.wav").toExternalForm());
-
-		explosionSound.setVolume(1.0);
+		if (AUDIO_ENABLED) {
+			fuseSound = new AudioClip(getClass().getResource("/music/fuse_music.mp3").toExternalForm());
+			explosionSound = new AudioClip(getClass().getResource("/music/explosion_music.mp3").toExternalForm());
+			explosionSound.setVolume(1.0);
+		}
 
 		// package the mask and the game world together and turn on caching. 
 		// This forces JavaFX to cut the holes properly before placing it over the clouds.
@@ -221,6 +242,42 @@ public class GameBoard extends Pane {
 		this.getChildren().addAll(fogBackground, maskedWorld, timerText, gameOverText, returnButton);
 
 		startGame();
+	}
+
+	private void spawnPowerUp() {
+		// cap concurrent power-ups on the board
+		long onBoard = activePowerUps.stream().filter(p -> !p.isCollected()).count();
+		if (onBoard >= maxActivePowerUps) return;
+
+		// 50/50 between SPEED and SHIELD
+		PowerUp.PowerUpType type = Math.random() < 0.5
+				? PowerUp.PowerUpType.SPEED
+				: PowerUp.PowerUpType.SHIELD;
+
+		double x = 0, y = 0;
+		boolean safe = false;
+		int tries = 0;
+		while (!safe && tries < 30) {
+			x = Math.random() * (700 - 80) + 10;
+			y = Math.random() * (400  - 80) + 10;
+			Rectangle test = new Rectangle(x, y, 60, 60);
+			safe = !test.getBoundsInParent().intersects(player1.getBoundsInParent())
+				&& !test.getBoundsInParent().intersects(player2.getBoundsInParent());
+			if (safe) {
+				for (Rectangle wall : obstacles) {
+					if (test.getBoundsInParent().intersects(wall.getBoundsInParent())) {
+						safe = false;
+						break;
+					}
+				}
+			}
+			tries++;
+		}
+		if (!safe) return; // give up this tick; we'll try again next interval
+
+		PowerUp pu = new PowerUp(type, x, y);
+		activePowerUps.add(pu);
+		gameWorld.getChildren().add(pu.getSprite());
 	}
 
 	public void addKey(KeyCode code) { activeKeys.add(code); }
@@ -245,7 +302,7 @@ public class GameBoard extends Pane {
 				}
 
 				if (timeRemaining <= 5 && !fusePlayed) {
-					fuseSound.play();
+					if (AUDIO_ENABLED && fuseSound != null) fuseSound.play();
 					fusePlayed = true;
 				}
 
@@ -260,6 +317,16 @@ public class GameBoard extends Pane {
 				p2Vision.setCenterX(player2.getCenterX() - 30);
 				p2Vision.setCenterY(player2.getCenterY());
 
+				// speed-boost expiry per player
+				if (p1SpeedBoostEnd > 0 && now >= p1SpeedBoostEnd) {
+					player1.resetSpeed();
+					p1SpeedBoostEnd = 0;
+				}
+				if (p2SpeedBoostEnd > 0 && now >= p2SpeedBoostEnd) {
+					player2.resetSpeed();
+					p2SpeedBoostEnd = 0;
+				}
+
 				checkCollision(now);
 			}
 		};
@@ -268,23 +335,69 @@ public class GameBoard extends Pane {
 
 	//  collision checker
 	private void checkCollision(long now) {
-		if (player1.getBoundsInParent().intersects(player2.getBoundsInParent())) {
-			// pass the bomb will only work after the invincible time
-			if (now - bombLastPassedTime > cooldownNanos) {
-				boolean p1HadBomb = player1.hasBomb();
-				player1.setBomb(!p1HadBomb);
-				player2.setBomb(p1HadBomb);
-				bombLastPassedTime = now;
+		// --- Bomb pass with shield handling ---
+		if (player1.getBoundsInParent().intersects(player2.getBoundsInParent())
+				&& now - bombLastPassedTime > cooldownNanos) {
+
+			Player holder   = player1.hasBomb() ? player1 : player2;
+			Player receiver = (holder == player1) ? player2 : player1;
+
+			if (receiver.isShielded()) {
+				// shield absorbs this would-be pass and breaks
+				receiver.breakShield();
+			} else {
+				holder.setBomb(false);
+				receiver.setBomb(true);
+			}
+			bombLastPassedTime = now;
+		}
+
+		// --- Periodic power-up spawn ---
+		if (now - lastPowerUpSpawnTime > spawnIntervalNanos) {
+			spawnPowerUp();
+			lastPowerUpSpawnTime = now;
+		}
+
+		// --- Pickup detection ---
+		for (PowerUp pu : activePowerUps) {
+			if (pu.isCollected()) continue;
+
+			Player collector = null;
+			if (player1.getBoundsInParent().intersects(pu.getBounds()))      collector = player1;
+			else if (player2.getBoundsInParent().intersects(pu.getBounds())) collector = player2;
+			if (collector == null) continue;
+
+			pu.collect();
+			gameWorld.getChildren().remove(pu.getSprite());
+
+			switch (pu.getType()) {
+				case SPEED  -> applySpeedBoost(collector, now);
+				case SHIELD -> collector.setShielded(true);
 			}
 		}
+		activePowerUps.removeIf(PowerUp::isCollected);
+	}
+
+	private void applySpeedBoost(Player p, long now) {
+		p.applySpeedBoost(1.8);
+		if (p == player1) p1SpeedBoostEnd = now + speedBoostDurationNanos;
+		else              p2SpeedBoostEnd = now + speedBoostDurationNanos;
 	}
 
 	//    end game screen
 	private void endGame() {
 		// 1. Stop the game loop and handle audio immediately
 		gameLoop.stop();
-		explosionSound.play();
-		fuseSound.stop();
+		if (AUDIO_ENABLED) {
+			if (explosionSound != null) explosionSound.play();
+			if (fuseSound != null) fuseSound.stop();
+		}
+
+		// clear lingering power-up effects so visuals don't persist on the death screen
+		player1.resetSpeed();
+		player2.resetSpeed();
+		player1.setShielded(false);
+		player2.setShielded(false);
 
 		// 2. Queue all visual UI updates and scene graph mutations safely
 		Platform.runLater(() -> {
