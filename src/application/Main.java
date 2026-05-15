@@ -78,10 +78,11 @@ public class Main extends Application {
 				// HOST BUTTON
 				(Integer maxPlayers, String hostName) -> { 
 					System.out.println("Starting Server for " + maxPlayers + " players...");
-					activeServer = new GameServer(maxPlayers);
+
+					// --- THE FIX: Pass the Host's GameSettings into the Server! ---
+					activeServer = new GameServer(maxPlayers, GameSettings.roundDurationSeconds, GameSettings.powerUpsEnabled);
 					activeServer.start();
 
-					// FIX: Turn spaces into underscores so network packets don't shatter!
 					String cleanName = hostName.trim().replaceAll(" ", "_");
 					String safeHostName = cleanName + "#" + (int)(Math.random() * 9000 + 1000);
 					joinLobby("localhost", true, safeHostName); 
@@ -117,6 +118,10 @@ public class Main extends Application {
 		Text counterText = new Text("PLAYERS: 1 / ?");
 		counterText.setFont(Font.font("Monospaced", 18));
 		counterText.setFill(Color.WHITE);
+
+		Text settingsText = new Text("DURATION: ?s  |  POWER-UPS: ?");
+		settingsText.setFont(Font.font("Monospaced", 14));
+		settingsText.setFill(Color.rgb(150, 150, 150));
 
 		// 3. CHAT FEATURE
 		VBox chatBox = new VBox(5);
@@ -168,7 +173,7 @@ public class Main extends Application {
 			showMainMenu(); 
 		});
 
-		root.getChildren().addAll(ipText, counterText, chatBox, chatInput, startBtn, backBtn);
+		root.getChildren().addAll(ipText, counterText,settingsText, chatBox, chatInput, startBtn, backBtn);
 		window.setScene(new Scene(root, WIDTH, HEIGHT));
 
 		// --- THE NETWORK CLIENT LOGIC ---
@@ -183,15 +188,24 @@ public class Main extends Application {
 				});
 			}
 
-			// Handle Dynamic Player Joins
+			// Handle Dynamic Player Joins & Settings Sync
 			else if (msg.startsWith("LOBBY_UPDATE")) {
-				String[] parts = msg.split(" ", 3);
+				// Split into exactly 5 pieces: [LOBBY_UPDATE, maxPlayers, duration, powerUps, roster]
+				String[] parts = msg.split(" ", 5);
 				String maxExpected = parts[1];
-				String roster = parts[2].trim();
+				String hostDur = parts[2];
+				boolean hostPwr = Boolean.parseBoolean(parts[3]);
+				String roster = parts[4].trim();
+
 				List<String> allPlayers = Arrays.asList(roster.split(","));
 
 				Platform.runLater(() -> {
+					// Update Player Count
 					counterText.setText("PLAYERS: " + allPlayers.size() + " / " + maxExpected);
+
+					// --- NEW: Update Settings Text! ---
+					settingsText.setText("DURATION: " + hostDur + "s  |  POWER-UPS: " + (hostPwr ? "ON" : "OFF"));
+
 					this.tempPlayerList = allPlayers; 
 
 					// Unlock the Start button for the Host if the room is full!

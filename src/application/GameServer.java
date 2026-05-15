@@ -11,12 +11,15 @@ public class GameServer {
 	private DatagramSocket socket;
 	private final int PORT = 4444;
 	private boolean isRunning = false;
-	// 1. Add the variable here
 	private final int maxPlayers;
+	private final int lobbyDuration;
+	private final boolean lobbyPowerUps;
 
 	// 2. Update constructor to require it
-	public GameServer(int maxPlayers) {
+	public GameServer(int maxPlayers, int lobbyDuration, boolean lobbyPowerUps) {
 		this.maxPlayers = maxPlayers;
+		this.lobbyDuration = lobbyDuration;
+		this.lobbyPowerUps = lobbyPowerUps;
 		try {
 			socket = new DatagramSocket(null); 
 
@@ -100,7 +103,7 @@ public class GameServer {
 				}
 				String roster = String.join(",", names);
 
-				broadcast("LOBBY_UPDATE " + maxPlayers + " " + roster);
+				broadcast("LOBBY_UPDATE " + maxPlayers + " " + lobbyDuration + " " + lobbyPowerUps + " " + roster);
 				
 				if (clients.size() == maxPlayers) {
 					System.out.println("[SERVER] Lobby is full! Waiting for Host to start.");
@@ -150,7 +153,7 @@ public class GameServer {
 				String roster = String.join(",", remainingNames);
 				
 				// Broadcast the updated roster to everyone still waiting
-				broadcast("LOBBY_UPDATE " + maxPlayers + " " + roster);
+				broadcast("LOBBY_UPDATE " + maxPlayers + " " + lobbyDuration + " " + lobbyPowerUps + " " + roster);
 			}
 		}
 	}
