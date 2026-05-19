@@ -59,6 +59,7 @@ java Main
 ### Option 3 – Use the Bash File
 
 ```bash
+chmod +x run.sh
 ./run.sh
 ```
 
