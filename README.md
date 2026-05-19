@@ -76,7 +76,7 @@ The host will provide the IP address that other players can use to connect.
 
 | Key | Action |
 |-----|--------|
-| W / A / S / D | Move |
+| Arrow keys | Move |
 
 ---
 
@@ -94,3 +94,5 @@ https://github.com/Justine0926/137-pass-the-bomb.git
 
 ## Gameplay Preview
 Uploading Final Game Preview.mov…
+
+
